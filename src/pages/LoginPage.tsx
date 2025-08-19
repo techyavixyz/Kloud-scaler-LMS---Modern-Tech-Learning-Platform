@@ -129,10 +129,10 @@ const LoginPage = () => {
 
           <div className="mt-6 text-center">
             <div className="space-y-2">
-              <p className="text-gray-400 text-sm font-medium">Demo credentials:</p>
+              <p className="text-gray-400 text-sm font-medium">Note:</p>
               <div className="text-xs text-gray-500 space-y-1">
-                <p><strong>Email:</strong> john@example.com</p>
-                <p><strong>Password:</strong> password123</p>
+                <p>Regular users can only be created by administrators.</p>
+                <p>Contact your administrator for account access.</p>
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ interface User {
   username: string;
   email: string;
   role: 'admin' | 'user';
+  isDefaultPassword?: boolean;
 }
 
 interface AuthContextType {

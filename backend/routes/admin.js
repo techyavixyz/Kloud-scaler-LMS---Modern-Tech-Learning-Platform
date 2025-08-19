@@ -25,11 +25,16 @@ router.post('/users', async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
     
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required for new users' });
+    }
+
     const user = new User({
       username,
       email,
       password,
-      role: role || 'user'
+      role: role || 'user',
+      isDefaultPassword: false
     });
     
     await user.save();

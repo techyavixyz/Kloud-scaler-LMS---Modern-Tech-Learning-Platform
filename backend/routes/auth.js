@@ -73,9 +73,46 @@ router.post('/admin/login', async (req, res) => {
         id: user._id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        isDefaultPassword: user.isDefaultPassword
       }
     });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Change password (for admin default password change)
+router.post('/change-password', authenticateAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Update password and remove default password flag
+    user.password = newPassword;
+    user.isDefaultPassword = false;
+    await user.save();
+
+    res.json({ message: 'Password changed successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -100,7 +137,8 @@ router.get('/admin/me', authenticateAdmin, (req, res) => {
       id: req.user._id,
       username: req.user.username,
       email: req.user.email,
-      role: req.user.role
+      role: req.user.role,
+      isDefaultPassword: req.user.isDefaultPassword
     }
   });
 });

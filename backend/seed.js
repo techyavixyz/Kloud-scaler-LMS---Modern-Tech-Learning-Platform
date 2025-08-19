@@ -33,6 +33,7 @@ async function seedData() {
       email: 'admin@example.com',
       password: 'password123', // assumes your User model hashes on save
       role: 'admin',
+      isDefaultPassword: true,
     }).save();
 
     // Create regular user

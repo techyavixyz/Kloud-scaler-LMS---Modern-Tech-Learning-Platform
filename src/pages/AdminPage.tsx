@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, FileText, Settings, Plus, Edit, Trash2, ExternalLink } from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 interface User {
   _id: string;
@@ -43,6 +44,15 @@ const AdminPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState<'user' | 'course' | 'blog'>('user');
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
+  const [passwordChangeForm, setPasswordChangeForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+  
+  const { user } = useAuth();
 
   // Form states
   const [userForm, setUserForm] = useState({
@@ -73,6 +83,10 @@ const AdminPage = () => {
 
   useEffect(() => {
     loadData();
+    // Check if admin needs to change default password
+    if (user?.isDefaultPassword) {
+      setShowPasswordChangeModal(true);
+    }
   }, []);
 
   const loadData = async () => {
@@ -173,6 +187,39 @@ const AdminPage = () => {
       loadData();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error deleting item');
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+
+    if (passwordChangeForm.newPassword !== passwordChangeForm.confirmPassword) {
+      setPasswordError('New passwords do not match');
+      return;
+    }
+
+    if (passwordChangeForm.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      await axios.post('http://localhost:3001/api/auth/change-password', {
+        currentPassword: passwordChangeForm.currentPassword,
+        newPassword: passwordChangeForm.newPassword
+      });
+      
+      setShowPasswordChangeModal(false);
+      setPasswordChangeForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      alert('Password changed successfully!');
+      
+      // Update user context to remove default password flag
+      if (user) {
+        user.isDefaultPassword = false;
+      }
+    } catch (error: any) {
+      setPasswordError(error.response?.data?.error || 'Error changing password');
     }
   };
 
@@ -481,21 +528,93 @@ const AdminPage = () => {
       </div>
 
       {/* Modal */}
-      {showModal && (
+      {(showModal || showPasswordChangeModal) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-900 border border-white/10 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-white">
-                {editingItem ? 'Edit' : 'Create'} {modalType === 'user' ? 'User' : modalType === 'course' ? 'Course' : 'Blog Post'}
-              </h3>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                ×
-              </button>
-            </div>
+            {showPasswordChangeModal ? (
+              <>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-white">Change Default Password</h3>
+                  {!user?.isDefaultPassword && (
+                    <button
+                      onClick={() => setShowPasswordChangeModal(false)}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                
+                <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <p className="text-yellow-300 text-sm">
+                    For security reasons, you must change your default password before accessing the admin panel.
+                  </p>
+                </div>
 
+                <form onSubmit={handlePasswordChange} className="space-y-4">
+                  {passwordError && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                      <p className="text-red-300 text-sm">{passwordError}</p>
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Current Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordChangeForm.currentPassword}
+                      onChange={(e) => setPasswordChangeForm({...passwordChangeForm, currentPassword: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={passwordChangeForm.newPassword}
+                      onChange={(e) => setPasswordChangeForm({...passwordChangeForm, newPassword: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Confirm New Password</label>
+                    <input
+                      type="password"
+                      required
+                      value={passwordChangeForm.confirmPassword}
+                      onChange={(e) => setPasswordChangeForm({...passwordChangeForm, confirmPassword: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                    />
+                  </div>
+                  
+                  <div className="flex space-x-3 pt-4">
+                    <button
+                      type="submit"
+                      className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
+                    >
+                      Change Password
+                    </button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-white">
+                    {editingItem ? 'Edit' : 'Create'} {modalType === 'user' ? 'User' : modalType === 'course' ? 'Course' : 'Blog Post'}
+                  </h3>
+                  <button
+                    onClick={() => setShowModal(false)}
+                    className="text-gray-400 hover:text-white"
+                  >
+                    ×
+                  </button>
+                </div>
             {modalType === 'user' && (
               <form onSubmit={handleCreateUser} className="space-y-4">
                 <div>
