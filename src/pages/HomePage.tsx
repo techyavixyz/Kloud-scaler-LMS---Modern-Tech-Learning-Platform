@@ -97,9 +97,12 @@ const HomePage = () => {
               Start Learning
               <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <button className="border border-white/20 text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
-              Watch Demo
-            </button>
+            <Link
+              to="/blog"
+              className="border border-white/20 text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors"
+            >
+              Read Blog
+            </Link>
           </div>
         </div>
       </section>
@@ -194,9 +197,12 @@ const HomePage = () => {
                 Get Started Now
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <button className="border border-white/20 text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition-colors">
+              <Link
+                to="/blog"
+                className="border border-white/20 text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/10 transition-colors"
+              >
                 Learn More
-              </button>
+              </Link>
             </div>
           </div>
         </div>

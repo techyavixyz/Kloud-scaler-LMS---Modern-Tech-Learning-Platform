@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Cloud, Eye, EyeOff, Lock, Mail, User } from 'lucide-react';
+import { Cloud, Eye, EyeOff, Lock, Mail, Shield } from 'lucide-react';
 
-const LoginPage = () => {
+const AdminLoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,7 +14,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = location.state?.from?.pathname || '/admin';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +22,7 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password, false); // false for user login
+      await login(email, password, true); // true for admin login
       navigate(from, { replace: true });
     } catch (error: any) {
       setError(error.message);
@@ -36,19 +36,20 @@ const LoginPage = () => {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <Link to="/" className="flex items-center justify-center space-x-2 mb-8">
-            <div className="bg-gradient-to-r from-cyan-400 to-blue-500 p-3 rounded-lg">
+            <div className="bg-gradient-to-r from-purple-400 to-indigo-500 p-3 rounded-lg">
               <Cloud className="h-8 w-8 text-white" />
             </div>
             <div className="text-white">
               <div className="text-2xl font-bold">Kloud-scaler</div>
-              <div className="text-sm text-cyan-300 -mt-1">LMS</div>
+              <div className="text-sm text-purple-300 -mt-1">Admin Portal</div>
             </div>
           </Link>
-          <h2 className="text-3xl font-bold text-white">
-            Sign in to your account
-          </h2>
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <Shield className="h-8 w-8 text-purple-400" />
+            <h2 className="text-3xl font-bold text-white">Admin Login</h2>
+          </div>
           <p className="mt-2 text-gray-300">
-            Access your courses and continue learning
+            Access the administrative dashboard
           </p>
         </div>
 
@@ -62,7 +63,7 @@ const LoginPage = () => {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                User Email
+                Admin Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -76,15 +77,15 @@ const LoginPage = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-3 border border-white/10 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  placeholder="Enter user email"
+                  className="block w-full pl-10 pr-3 py-3 border border-white/10 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter admin email"
                 />
               </div>
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                User Password
+                Admin Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -98,8 +99,8 @@ const LoginPage = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-10 pr-10 py-3 border border-white/10 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                  placeholder="Enter user password"
+                  className="block w-full pl-10 pr-10 py-3 border border-white/10 rounded-lg bg-white/5 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter admin password"
                 />
                 <button
                   type="button"
@@ -119,21 +120,29 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <User className="h-5 w-5 mr-2" />
-                {isLoading ? 'Signing in...' : 'User Sign in'}
+                <Shield className="h-5 w-5 mr-2" />
+                {isLoading ? 'Signing in...' : 'Admin Sign in'}
               </button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
             <div className="space-y-2">
-              <p className="text-gray-400 text-sm font-medium">Demo credentials:</p>
+              <p className="text-gray-400 text-sm font-medium">Demo Admin Credentials:</p>
               <div className="text-xs text-gray-500 space-y-1">
-                <p><strong>Email:</strong> john@example.com</p>
+                <p><strong>Email:</strong> admin@example.com</p>
                 <p><strong>Password:</strong> password123</p>
               </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <Link
+                to="/login"
+                className="text-purple-400 hover:text-purple-300 transition-colors text-sm"
+              >
+                ← Back to User Login
+              </Link>
             </div>
           </div>
         </div>
@@ -142,4 +151,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default AdminLoginPage;

@@ -5,10 +5,7 @@ import User from './models/User.js';
 import Course from './models/Course.js';
 import BlogPost from './models/BlogPost.js';
 
-const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  process.env.MONGO_URI ||       // optional alias
-  process.env.DATABASE_URL;      // optional alias
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kloud_scaler_lms';
 
 const DB_NAME = process.env.MONGODB_DB || 'kloud_scaler';
 
@@ -16,11 +13,11 @@ async function seedData() {
   try {
     if (!MONGODB_URI) {
       throw new Error(
-        'Missing Mongo connection string. Set MONGODB_URI (or MONGO_URI / DATABASE_URL) in .env'
+        'Missing Mongo connection string. Set MONGODB_URI in .env'
       );
     }
 
-    await mongoose.connect(MONGODB_URI, { dbName: DB_NAME });
+    await mongoose.connect(MONGODB_URI);
     console.log(`✅ Connected to MongoDB (db: ${DB_NAME})`);
 
     // Clear existing data

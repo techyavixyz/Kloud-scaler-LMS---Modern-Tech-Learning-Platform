@@ -13,8 +13,10 @@ const Header = () => {
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
     { name: 'Blog', path: '/blog' },
-    ...(user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
+
+  const adminItems = user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : [];
+  const allNavItems = [...navItems, ...adminItems];
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -35,7 +37,7 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-8">
-            {navItems.map((item) => (
+            {allNavItems.map((item) => (
               <Link
                 key={item.name}
                 to={item.path}
@@ -108,7 +110,7 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden border-t border-white/10 mt-2 pt-2 pb-4">
             <nav className="flex flex-col space-y-2">
-              {navItems.map((item) => (
+              {allNavItems.map((item) => (
                 <Link
                   key={item.name}
                   to={item.path}
