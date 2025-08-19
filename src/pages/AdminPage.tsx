@@ -615,233 +615,236 @@ const AdminPage = () => {
                     ×
                   </button>
                 </div>
-            {modalType === 'user' && (
-              <form onSubmit={handleCreateUser} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
-                  <input
-                    type="text"
-                    required
-                    value={userForm.username}
-                    onChange={(e) => setUserForm({...userForm, username: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                  <input
-                    type="email"
-                    required
-                    value={userForm.email}
-                    onChange={(e) => setUserForm({...userForm, email: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Password {editingItem && '(leave blank to keep current)'}
-                  </label>
-                  <input
-                    type="password"
-                    required={!editingItem}
-                    value={userForm.password}
-                    onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
-                  <select
-                    value={userForm.role}
-                    onChange={(e) => setUserForm({...userForm, role: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  >
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
-                  >
-                    {editingItem ? 'Update' : 'Create'} User
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
 
-            {modalType === 'course' && (
-              <form onSubmit={handleCreateCourse} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={courseForm.title}
-                    onChange={(e) => setCourseForm({...courseForm, title: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
-                  <textarea
-                    required
-                    rows={3}
-                    value={courseForm.description}
-                    onChange={(e) => setCourseForm({...courseForm, description: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-                    <select
-                      value={courseForm.category}
-                      onChange={(e) => setCourseForm({...courseForm, category: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    >
-                      <option value="AWS">AWS</option>
-                      <option value="Kubernetes">Kubernetes</option>
-                      <option value="Docker">Docker</option>
-                      <option value="Linux">Linux</option>
-                      <option value="Ansible">Ansible</option>
-                      <option value="GCP">GCP</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Difficulty</label>
-                    <select
-                      value={courseForm.difficulty}
-                      onChange={(e) => setCourseForm({...courseForm, difficulty: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    >
-                      <option value="Beginner">Beginner</option>
-                      <option value="Intermediate">Intermediate</option>
-                      <option value="Advanced">Advanced</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Duration</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g., 2 hours, 5 days"
-                    value={courseForm.duration}
-                    onChange={(e) => setCourseForm({...courseForm, duration: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
-                  >
-                    {editingItem ? 'Update' : 'Create'} Course
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
+                {modalType === 'user' && (
+                  <form onSubmit={handleCreateUser} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Username</label>
+                      <input
+                        type="text"
+                        required
+                        value={userForm.username}
+                        onChange={(e) => setUserForm({...userForm, username: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                      <input
+                        type="email"
+                        required
+                        value={userForm.email}
+                        onChange={(e) => setUserForm({...userForm, email: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Password {editingItem && '(leave blank to keep current)'}
+                      </label>
+                      <input
+                        type="password"
+                        required={!editingItem}
+                        value={userForm.password}
+                        onChange={(e) => setUserForm({...userForm, password: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
+                      <select
+                        value={userForm.role}
+                        onChange={(e) => setUserForm({...userForm, role: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
+                      >
+                        {editingItem ? 'Update' : 'Create'} User
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
 
-            {modalType === 'blog' && (
-              <form onSubmit={handleCreateBlog} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={blogForm.title}
-                    onChange={(e) => setBlogForm({...blogForm, title: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Excerpt</label>
-                  <textarea
-                    required
-                    rows={2}
-                    maxLength={300}
-                    value={blogForm.excerpt}
-                    onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Content (Markdown)</label>
-                  <textarea
-                    required
-                    rows={8}
-                    value={blogForm.content}
-                    onChange={(e) => setBlogForm({...blogForm, content: e.target.value})}
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    placeholder="Write your blog post content in Markdown..."
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-                    <input
-                      type="text"
-                      required
-                      value={blogForm.category}
-                      onChange={(e) => setBlogForm({...blogForm, category: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-                    <select
-                      value={blogForm.status}
-                      onChange={(e) => setBlogForm({...blogForm, status: e.target.value})}
-                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="published">Published</option>
-                      <option value="archived">Archived</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Tags (comma separated)</label>
-                  <input
-                    type="text"
-                    value={blogForm.tags}
-                    onChange={(e) => setBlogForm({...blogForm, tags: e.target.value})}
-                    placeholder="react, javascript, tutorial"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                  />
-                </div>
-                <div className="flex space-x-3 pt-4">
-                  <button
-                    type="submit"
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
-                  >
-                    {editingItem ? 'Update' : 'Create'} Post
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                {modalType === 'course' && (
+                  <form onSubmit={handleCreateCourse} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={courseForm.title}
+                        onChange={(e) => setCourseForm({...courseForm, title: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={courseForm.description}
+                        onChange={(e) => setCourseForm({...courseForm, description: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                        <select
+                          value={courseForm.category}
+                          onChange={(e) => setCourseForm({...courseForm, category: e.target.value})}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        >
+                          <option value="AWS">AWS</option>
+                          <option value="Kubernetes">Kubernetes</option>
+                          <option value="Docker">Docker</option>
+                          <option value="Linux">Linux</option>
+                          <option value="Ansible">Ansible</option>
+                          <option value="GCP">GCP</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Difficulty</label>
+                        <select
+                          value={courseForm.difficulty}
+                          onChange={(e) => setCourseForm({...courseForm, difficulty: e.target.value})}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        >
+                          <option value="Beginner">Beginner</option>
+                          <option value="Intermediate">Intermediate</option>
+                          <option value="Advanced">Advanced</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Duration</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g., 2 hours, 5 days"
+                        value={courseForm.duration}
+                        onChange={(e) => setCourseForm({...courseForm, duration: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
+                      >
+                        {editingItem ? 'Update' : 'Create'} Course
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {modalType === 'blog' && (
+                  <form onSubmit={handleCreateBlog} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={blogForm.title}
+                        onChange={(e) => setBlogForm({...blogForm, title: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Excerpt</label>
+                      <textarea
+                        required
+                        rows={2}
+                        maxLength={300}
+                        value={blogForm.excerpt}
+                        onChange={(e) => setBlogForm({...blogForm, excerpt: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Content (Markdown)</label>
+                      <textarea
+                        required
+                        rows={8}
+                        value={blogForm.content}
+                        onChange={(e) => setBlogForm({...blogForm, content: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        placeholder="Write your blog post content in Markdown..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                        <input
+                          type="text"
+                          required
+                          value={blogForm.category}
+                          onChange={(e) => setBlogForm({...blogForm, category: e.target.value})}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
+                        <select
+                          value={blogForm.status}
+                          onChange={(e) => setBlogForm({...blogForm, status: e.target.value})}
+                          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="published">Published</option>
+                          <option value="archived">Archived</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Tags (comma separated)</label>
+                      <input
+                        type="text"
+                        value={blogForm.tags}
+                        onChange={(e) => setBlogForm({...blogForm, tags: e.target.value})}
+                        placeholder="react, javascript, tutorial"
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
+                      >
+                        {editingItem ? 'Update' : 'Create'} Post
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </>
             )}
           </div>
         </div>
