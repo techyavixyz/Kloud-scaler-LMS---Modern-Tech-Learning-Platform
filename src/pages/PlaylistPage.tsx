@@ -263,6 +263,51 @@ const PlaylistPage = () => {
                     >
                       <Settings className="h-5 w-5" />
                     </button>
+                    
+                    {/* Quality Menu */}
+                    {showQualityMenu && (
+                      <div className="absolute bottom-12 right-0 bg-gray-900 border border-white/10 rounded-lg shadow-lg z-50 min-w-[120px]">
+                        <div className="p-2">
+                          <div className="text-white text-sm font-medium mb-2">Quality</div>
+                          <button
+                            onClick={() => {
+                              setShowQualityMenu(false);
+                              // Auto quality logic would go here
+                            }}
+                            className="block w-full text-left px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded"
+                          >
+                            Auto
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowQualityMenu(false);
+                              // 1080p quality logic would go here
+                            }}
+                            className="block w-full text-left px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded"
+                          >
+                            1080p
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowQualityMenu(false);
+                              // 720p quality logic would go here
+                            }}
+                            className="block w-full text-left px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded"
+                          >
+                            720p
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowQualityMenu(false);
+                              // 480p quality logic would go here
+                            }}
+                            className="block w-full text-left px-2 py-1 text-sm text-gray-300 hover:text-white hover:bg-white/10 rounded"
+                          >
+                            480p
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <button 
                       onClick={toggleFullscreen}

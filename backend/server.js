@@ -237,6 +237,7 @@ import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import coursesRoutes from "./routes/courses.js";
 import blogRoutes from "./routes/blog.js";
+import toolsRoutes from "./routes/tools.js";
 
 dotenv.config();
 
@@ -379,6 +380,9 @@ app.use("/api/courses", coursesRoutes);
 
 // Blog routes
 app.use("/api/blog", blogRoutes);
+
+// Tools routes
+app.use("/api/tools", toolsRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

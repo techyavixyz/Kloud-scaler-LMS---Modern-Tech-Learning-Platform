@@ -12,8 +12,8 @@ const Header = () => {
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
+    { name: 'Tools', path: '/tools' },
     { name: 'Blog', path: '/blog' },
-    
   ];
 
   const adminItems = user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : [];

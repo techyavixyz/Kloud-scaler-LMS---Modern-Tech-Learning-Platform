@@ -13,6 +13,8 @@ import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import PlaylistPage from './pages/PlaylistPage';
+import ToolsPage from './pages/ToolsPage';
+import ToolDetailPage from './pages/ToolDetailPage';
 
 function App() {
   return (
@@ -34,7 +36,7 @@ function App() {
                 } 
               />
               <Route 
-                path="/live-class"
+                path="/live-class-recording"
                 element={
                   <ProtectedRoute>
                     <PlaylistPage />
@@ -50,6 +52,8 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route path="/tools" element={<ToolsPage />} />
+              <Route path="/tools/:slug" element={<ToolDetailPage />} />
               <Route path="/blog" element={<BlogPage />} />
               <Route path="/blog/:slug" element={<BlogPostPage />} />
               <Route 

@@ -2,6 +2,7 @@ import express from 'express';
 import User from '../models/User.js';
 import Course from '../models/Course.js';
 import BlogPost from '../models/BlogPost.js';
+import Tool from '../models/Tool.js';
 import { authenticateAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -205,6 +206,68 @@ router.delete('/blog-posts/:id', async (req, res) => {
       return res.status(404).json({ error: 'Blog post not found' });
     }
     res.json({ message: 'Blog post deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// === TOOLS MANAGEMENT ===
+// Get all tools
+router.get('/tools', async (req, res) => {
+  try {
+    const tools = await Tool.find()
+      .populate('author', 'username email')
+      .sort({ createdAt: -1 });
+    res.json(tools);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create tool
+router.post('/tools', async (req, res) => {
+  try {
+    const tool = new Tool({
+      ...req.body,
+      author: req.user._id
+    });
+    
+    await tool.save();
+    await tool.populate('author', 'username email');
+    
+    res.status(201).json(tool);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update tool
+router.put('/tools/:id', async (req, res) => {
+  try {
+    const tool = await Tool.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('author', 'username email');
+    
+    if (!tool) {
+      return res.status(404).json({ error: 'Tool not found' });
+    }
+    
+    res.json(tool);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Delete tool
+router.delete('/tools/:id', async (req, res) => {
+  try {
+    const tool = await Tool.findByIdAndDelete(req.params.id);
+    if (!tool) {
+      return res.status(404).json({ error: 'Tool not found' });
+    }
+    res.json({ message: 'Tool deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
