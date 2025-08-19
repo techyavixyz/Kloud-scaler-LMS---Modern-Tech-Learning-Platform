@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Cloud, Menu, X } from 'lucide-react';
+import { Cloud, Menu, X, User, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
-    { name: 'About', path: '/about' },
-    { name: 'Contact', path: '/contact' },
+    { name: 'Blog', path: '/blog' },
+    ...(user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -47,14 +50,57 @@ const Header = () => {
             ))}
           </nav>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden">
+          {/* User Menu & Mobile menu button */}
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-2 text-gray-300 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <User className="h-5 w-5" />
+                  <span className="hidden md:block">{user.username}</span>
+                </button>
+                
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-48 bg-gray-900 border border-white/10 rounded-lg shadow-lg z-50">
+                    <div className="p-3 border-b border-white/10">
+                      <p className="text-white font-medium">{user.username}</p>
+                      <p className="text-gray-400 text-sm">{user.email}</p>
+                      <span className="inline-block mt-1 px-2 py-1 bg-cyan-500/20 text-cyan-300 text-xs rounded-full">
+                        {user.role}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full flex items-center space-x-2 px-3 py-2 text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
+              >
+                Login
+              </Link>
+            )}
+            
+            <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="text-gray-300 hover:text-white p-2"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
+            </div>
           </div>
         </div>
 
@@ -76,6 +122,15 @@ const Header = () => {
                   {item.name}
                 </Link>
               ))}
+              {!user && (
+                <Link
+                  to="/login"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="px-3 py-2 rounded-md text-sm font-medium bg-gradient-to-r from-cyan-500 to-blue-600 text-white"
+                >
+                  Login
+                </Link>
+              )}
             </nav>
           </div>
         )}

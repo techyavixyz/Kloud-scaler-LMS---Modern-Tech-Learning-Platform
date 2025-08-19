@@ -11,12 +11,21 @@
     "backend": "cd backend && npm run dev"
   },
   "dependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.6.2",
+    "bcryptjs": "^3.0.2",
     "googleapis": "^156.0.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.344.0",
+    "mermaid": "^11.10.0",
+    "mongoose": "^8.17.2",
+    "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.20.1"
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^6.20.1",
+    "react-syntax-highlighter": "^15.6.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

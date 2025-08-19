@@ -230,6 +230,13 @@ import fs from "fs";
 import { google } from "googleapis";
 import cors from "cors";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
+
+// Import routes
+import authRoutes from "./routes/auth.js";
+import adminRoutes from "./routes/admin.js";
+import coursesRoutes from "./routes/courses.js";
+import blogRoutes from "./routes/blog.js";
 
 dotenv.config();
 
@@ -242,6 +249,11 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// === MongoDB Connection ===
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('✅ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 // === Google Drive Config from .env ===
 const TOKEN_PATH = path.resolve(process.env.GOOGLE_TOKEN_PATH || path.join(__dirname, "token.json"));
@@ -353,6 +365,18 @@ async function findMasterFiles(drive, parentId, prefix = "") {
 }
 
 // === API Routes ===
+
+// Auth routes
+app.use("/api/auth", authRoutes);
+
+// Admin routes
+app.use("/api/admin", adminRoutes);
+
+// Course routes
+app.use("/api/courses", coursesRoutes);
+
+// Blog routes
+app.use("/api/blog", blogRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
