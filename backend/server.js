@@ -222,7 +222,6 @@
 //   console.log(`👉 Playlist API at http://localhost:${PORT}/api/playlist`);
 // });
 
-
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -252,19 +251,18 @@ app.use(cors());
 app.use(express.json());
 
 // === MongoDB Connection ===
-// const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/kloud_scaler_lms';
-const MONGODB_URI = process.env.MONGODB_URI ;
+const MONGODB_URI = process.env.MONGODB_URI;
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
+  .then(() => console.log("✅ Connected to MongoDB"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
-// === Google Drive Config from .env ===
+// === Google Drive Config ===
 const TOKEN_PATH = path.resolve(process.env.GOOGLE_TOKEN_PATH || path.join(__dirname, "token.json"));
 const CREDENTIALS_PATH = path.resolve(process.env.GOOGLE_CREDENTIALS_PATH || path.join(__dirname, "credentials.json"));
 const FOLDER_VIDEOS = process.env.GOOGLE_DRIVE_FOLDER_ID;
 const REDIRECT_URL = process.env.GOOGLE_REDIRECT_URL || `http://localhost:${PORT}/oauth2callback`;
 
-// === Cache with TTL ===
+// === File Cache (for m3u8 + ts mapping) ===
 const CACHE_TTL = 30 * 60 * 1000; // 30 min
 const CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
 const fileCache = new Map(); // key -> { file, cachedAt }
@@ -276,7 +274,6 @@ function cacheGet(key) {
   const entry = fileCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.cachedAt > CACHE_TTL) {
-    console.log(`🗑️ Cache expired for ${key}`);
     fileCache.delete(key);
     return null;
   }
@@ -284,14 +281,9 @@ function cacheGet(key) {
 }
 setInterval(() => {
   const now = Date.now();
-  let removed = 0;
   for (const [key, entry] of fileCache.entries()) {
-    if (now - entry.cachedAt > CACHE_TTL) {
-      fileCache.delete(key);
-      removed++;
-    }
+    if (now - entry.cachedAt > CACHE_TTL) fileCache.delete(key);
   }
-  if (removed > 0) console.log(`🧹 Cache cleanup removed ${removed} entries`);
 }, CLEANUP_INTERVAL);
 
 // === OAuth Handling ===
@@ -306,15 +298,11 @@ async function authorize() {
   if (fs.existsSync(TOKEN_PATH)) {
     const token = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
     oAuth2Client.setCredentials(token);
-
-    // check expiry
     if (!token.expiry_date || token.expiry_date < Date.now()) {
-      console.log("⚠️ Token expired, need re-authentication");
       throw new Error("Token expired");
     }
     return oAuth2Client;
   } else {
-    console.log("⚠️ No token.json found, visit auth URL to generate it");
     throw new Error("No token.json found");
   }
 }
@@ -332,12 +320,11 @@ app.get("/oauth", (req, res) => {
 app.get("/oauth2callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).send("Missing code");
-
   const oAuth2Client = loadOAuthClient();
   const { tokens } = await oAuth2Client.getToken(code);
   oAuth2Client.setCredentials(tokens);
   fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-  res.send("✅ Authentication successful! You can now restart the server.");
+  res.send("✅ Authentication successful! Restart the server.");
 });
 
 // === Recursive walker for Drive ===
@@ -367,21 +354,35 @@ async function findMasterFiles(drive, parentId, prefix = "") {
   return items;
 }
 
+// === Global Playlist Cache ===
+let playlistCache = { data: [], timestamp: 0, refreshing: false };
+const PLAYLIST_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function refreshPlaylist() {
+  if (playlistCache.refreshing) return;
+  playlistCache.refreshing = true;
+  try {
+    const auth = await authorize();
+    const drive = google.drive({ version: "v3", auth });
+    const items = await findMasterFiles(drive, FOLDER_VIDEOS);
+    items.sort((a, b) => b.mtime - a.mtime);
+    playlistCache.data = items.map(({ title, src }) => ({ title, src }));
+    playlistCache.timestamp = Date.now();
+    console.log(`✅ Playlist refreshed (${playlistCache.data.length} items)`);
+  } catch (err) {
+    console.error("❌ Failed to refresh playlist:", err.message);
+  } finally {
+    playlistCache.refreshing = false;
+  }
+}
+
 // === API Routes ===
 
-// Auth routes
+// Core Routes
 app.use("/api/auth", authRoutes);
-
-// Admin routes
 app.use("/api/admin", adminRoutes);
-
-// Course routes
 app.use("/api/courses", coursesRoutes);
-
-// Blog routes
 app.use("/api/blog", blogRoutes);
-
-// Tools routes
 app.use("/api/tools", toolsRoutes);
 
 // Health check
@@ -389,44 +390,33 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Backend is running" });
 });
 
-// Playlist API
+// Optimized Playlist API
 app.get("/api/playlist", async (req, res) => {
   console.log("📥 GET /api/playlist");
-  console.time("⏱ /api/playlist");
-  try {
-    const auth = await authorize();
-    const drive = google.drive({ version: "v3", auth });
-    const items = await findMasterFiles(drive, FOLDER_VIDEOS);
-    items.sort((a, b) => b.mtime - a.mtime);
-    res.json(items.map(({ title, src }) => ({ title, src })));
-  } catch (err) {
-    console.error("❌ Error fetching playlist:", err.message);
-    res.status(500).json({ error: err.message });
+  const isFresh = Date.now() - playlistCache.timestamp < PLAYLIST_TTL;
+  if (isFresh && playlistCache.data.length > 0) {
+    console.log("⚡ Serving playlist from cache");
+    res.json(playlistCache.data);
+    refreshPlaylist(); // async background refresh
+  } else {
+    console.log("🕒 Cache empty/expired, fetching from Drive...");
+    await refreshPlaylist();
+    res.json(playlistCache.data);
   }
-  console.timeEnd("⏱ /api/playlist");
 });
 
 // Proxy for m3u8
 app.get("/api/drive/hls/:id", async (req, res) => {
-  console.log(`📥 GET /api/drive/hls/${req.params.id}`);
-  console.time(`⏱ m3u8 ${req.params.id}`);
   try {
     const fileId = req.params.id;
     const auth = await authorize();
     const drive = google.drive({ version: "v3", auth });
-
     let file = cacheGet(fileId);
     if (!file) {
-      file = await drive.files.get({ fileId, fields: "id,name,parents,modifiedTime" })
-        .then(r => r.data);
+      file = await drive.files.get({ fileId, fields: "id,name,parents,modifiedTime" }).then(r => r.data);
       cacheSet(fileId, file);
     }
-
-    const stream = await drive.files.get(
-      { fileId: file.id, alt: "media" },
-      { responseType: "stream" }
-    );
-
+    const stream = await drive.files.get({ fileId: file.id, alt: "media" }, { responseType: "stream" });
     let content = "";
     stream.data.on("data", chunk => content += chunk.toString());
     stream.data.on("end", async () => {
@@ -435,59 +425,43 @@ app.get("/api/drive/hls/:id", async (req, res) => {
         fields: "files(id,name)",
         pageSize: 1000,
       });
-      segs.data.files.forEach(f => cacheSet(f.name, f));
       const tsMap = Object.fromEntries(segs.data.files.map(f => [f.name, f.id]));
-
       const variants = await drive.files.list({
         q: `'${file.parents[0]}' in parents and trashed=false and name contains '.m3u8'`,
         fields: "files(id,name)",
         pageSize: 100,
       });
       variants.data.files.forEach(f => cacheSet(f.name, f));
-
       content = content.replace(/([^\s]+\.ts)/g, m => `/api/drive/file/${tsMap[m] || m}`);
       content = content.replace(/([^\s]+\.m3u8)/g, m => {
         const f = cacheGet(m);
         return f ? `/api/drive/hls/${f.id}` : m;
       });
-
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
       res.send(content);
-      console.timeEnd(`⏱ m3u8 ${req.params.id}`);
     });
   } catch (err) {
     console.error("❌ Error proxying m3u8:", err.message);
     res.status(500).send("Error fetching m3u8");
-    console.timeEnd(`⏱ m3u8 ${req.params.id}`);
   }
 });
 
 // Proxy for TS segments
 app.get("/api/drive/file/:id", async (req, res) => {
-  console.log(`📥 GET /api/drive/file/${req.params.id}`);
-  console.time(`⏱ ts ${req.params.id}`);
   try {
     const auth = await authorize();
     const drive = google.drive({ version: "v3", auth });
     const fileId = req.params.id;
-
-    const file = await drive.files.get(
-      { fileId, alt: "media" },
-      { responseType: "stream" }
-    );
-
+    const file = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream" });
     res.setHeader("Content-Type", "video/mp2t");
-    file.data.pipe(res).on("finish", () => {
-      console.timeEnd(`⏱ ts ${req.params.id}`);
-    });
+    file.data.pipe(res);
   } catch (err) {
     console.error("❌ Error proxying segment:", err.message);
     res.status(500).send("Error fetching segment");
-    console.timeEnd(`⏱ ts ${req.params.id}`);
   }
 });
 
-// Error handling
+// Error handler
 app.use((err, req, res, next) => {
   console.error("💥 Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });

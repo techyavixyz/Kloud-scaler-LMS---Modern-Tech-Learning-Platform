@@ -26,7 +26,11 @@ const courseSchema = new mongoose.Schema({
   },
   thumbnail: {
     type: String,
-    default: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
+    // default: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
+    default: 'https://drive.google.com/file/d/1lK9nzgGXQEretgvBoEUYniPw0bGTosHt/view?usp=drive_link'
+
+
+
   },
   playlist: [{
     title: String,

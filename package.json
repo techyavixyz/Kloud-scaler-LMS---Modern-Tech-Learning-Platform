@@ -20,6 +20,7 @@
     "axios": "^1.6.2",
     "bcryptjs": "^3.0.2",
     "googleapis": "^156.0.0",
+    "hls.js": "^1.6.10",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.344.0",
     "mermaid": "^11.10.0",
