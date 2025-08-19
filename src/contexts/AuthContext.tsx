@@ -11,7 +11,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, isAdmin?: boolean) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -45,7 +45,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkAuth = async () => {
       if (token) {
         try {
-          const response = await axios.get('http://localhost:3001/api/auth/me');
+          // Try admin endpoint first, then user endpoint
+          let response;
+          try {
+            response = await axios.get('http://localhost:3001/api/auth/admin/me');
+          } catch (adminError) {
+            response = await axios.get('http://localhost:3001/api/auth/user/me');
+          }
           setUser(response.data.user);
         } catch (error) {
           localStorage.removeItem('token');
@@ -58,9 +64,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, [token]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, isAdmin: boolean = false) => {
     try {
-      const response = await axios.post('http://localhost:3001/api/auth/login', {
+      const endpoint = isAdmin ? '/api/auth/admin/login' : '/api/auth/user/login';
+      const response = await axios.post(`http://localhost:3001${endpoint}`, {
         email,
         password
       });
@@ -71,7 +78,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(newToken);
       setUser(userData);
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Login failed');
+      const errorMessage = isAdmin 
+        ? error.response?.data?.error || 'Admin login failed'
+        : error.response?.data?.error || 'Login failed';
+      throw new Error(errorMessage);
     }
   };
 

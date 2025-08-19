@@ -1,6 +1,6 @@
 import express from 'express';
 import Course from '../models/Course.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticateUser } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get single course with playlist (requires auth)
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticateUser, async (req, res) => {
   try {
     const course = await Course.findOne({ 
       _id: req.params.id, 
@@ -49,7 +49,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // Enroll in course
-router.post('/:id/enroll', authenticate, async (req, res) => {
+router.post('/:id/enroll', authenticateUser, async (req, res) => {
   try {
     const course = await Course.findOne({ 
       _id: req.params.id, 

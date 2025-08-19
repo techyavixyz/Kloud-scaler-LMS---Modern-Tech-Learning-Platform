@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 import dotenv from 'dotenv';
 import User from './models/User.js';
 import Course from './models/Course.js';
@@ -34,6 +33,27 @@ const seedData = async () => {
       role: 'user'
     });
     await regularUser.save();
+
+    // Create additional test users
+    const testUsers = [
+      {
+        username: 'jane_smith',
+        email: 'jane@example.com',
+        password: 'password123',
+        role: 'user'
+      },
+      {
+        username: 'bob_wilson',
+        email: 'bob@example.com',
+        password: 'password123',
+        role: 'user'
+      }
+    ];
+
+    for (const userData of testUsers) {
+      const user = new User(userData);
+      await user.save();
+    }
 
     // Create sample courses
     const courses = [

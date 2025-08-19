@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Cloud, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Cloud, Eye, EyeOff, Lock, Mail, Shield, User } from 'lucide-react';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isAdminLogin, setIsAdminLogin] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,7 +23,7 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, isAdminLogin);
       navigate(from, { replace: true });
     } catch (error: any) {
       setError(error.message);
@@ -44,13 +45,53 @@ const LoginPage = () => {
               <div className="text-sm text-cyan-300 -mt-1">LMS</div>
             </div>
           </Link>
-          <h2 className="text-3xl font-bold text-white">Sign in to your account</h2>
+          <h2 className="text-3xl font-bold text-white">
+            {isAdminLogin ? 'Admin Login' : 'Sign in to your account'}
+          </h2>
           <p className="mt-2 text-gray-300">
-            Access your courses and continue learning
+            {isAdminLogin ? 'Access admin dashboard' : 'Access your courses and continue learning'}
           </p>
         </div>
 
         <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-8">
+          {/* Login Type Toggle */}
+          <div className="flex mb-6 bg-white/5 rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAdminLogin(false);
+                setError('');
+                setEmail('');
+                setPassword('');
+              }}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                !isAdminLogin
+                  ? 'bg-cyan-500 text-white'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <User className="h-4 w-4" />
+              <span>User Login</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsAdminLogin(true);
+                setError('');
+                setEmail('');
+                setPassword('');
+              }}
+              className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                isAdminLogin
+                  ? 'bg-purple-500 text-white'
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <Shield className="h-4 w-4" />
+              <span>Admin Login</span>
+            </button>
+          </div>
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
@@ -117,17 +158,25 @@ const LoginPage = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${
+                  isAdminLogin
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 focus:ring-purple-500'
+                    : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 focus:ring-cyan-500'
+                }`}
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? 'Signing in...' : isAdminLogin ? 'Admin Sign in' : 'Sign in'}
               </button>
             </div>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
-              Demo credentials: admin@example.com / password123
-            </p>
+            <div className="space-y-2">
+              <p className="text-gray-400 text-sm font-medium">Demo credentials:</p>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p><strong>User:</strong> john@example.com / password123</p>
+                <p><strong>Admin:</strong> admin@example.com / password123</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

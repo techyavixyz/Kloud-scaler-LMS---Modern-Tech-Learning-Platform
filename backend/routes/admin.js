@@ -2,12 +2,12 @@ import express from 'express';
 import User from '../models/User.js';
 import Course from '../models/Course.js';
 import BlogPost from '../models/BlogPost.js';
-import { authenticate, requireAdmin } from '../middleware/auth.js';
+import { authenticateAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Apply auth middleware to all admin routes
-router.use(authenticate, requireAdmin);
+// Apply admin auth middleware to all admin routes
+router.use(authenticateAdmin);
 
 // === USER MANAGEMENT ===
 // Get all users
