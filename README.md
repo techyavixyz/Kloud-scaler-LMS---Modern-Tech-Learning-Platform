@@ -1,5 +1,5 @@
 # Kloud-scaler LMS - Modern Tech Learning Platform
-
+Created dedicated AdminLoginPage.tsx with separate URL /admin/login
 A comprehensive Learning Management System focused on cloud technologies, DevOps, and modern infrastructure tools.
 
 ## Features
