@@ -12,6 +12,7 @@ import BlogPostPage from './pages/BlogPostPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminLoginPage from './pages/AdminLoginPage';
+import PlaylistPage from './pages/PlaylistPage';
 
 function App() {
   return (
@@ -32,6 +33,15 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/live-class"
+                element={
+                  <ProtectedRoute>
+                    <PlaylistPage />
+                  </ProtectedRoute>
+                } 
+              />
+
               <Route 
                 path="/course/:id" 
                 element={

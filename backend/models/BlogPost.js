@@ -28,7 +28,7 @@ const blogPostSchema = new mongoose.Schema({
   },
   featuredImage: {
     type: String,
-    default: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
+    default: 'https://github.com/techyavixyz/Kloud-scaler-LMS---Modern-Tech-Learning-Platform/blob/main/backend/images/Screenshot%20from%202024-10-07%2017-02-16.png'
   },
   tags: [{
     type: String,
@@ -65,21 +65,22 @@ const blogPostSchema = new mongoose.Schema({
   }
 });
 
-// Generate slug from title
-blogPostSchema.pre('save', function(next) {
-  if (this.isModified('title')) {
+// ✅ Generate slug BEFORE validation so it never fails
+blogPostSchema.pre('validate', function (next) {
+  if (!this.slug && this.title) {
     this.slug = this.title
       .toLowerCase()
       .replace(/[^a-zA-Z0-9\s]/g, '')
       .replace(/\s+/g, '-');
   }
+
   this.updatedAt = Date.now();
-  
-  // Set publishedAt when status changes to published
+
+  // Auto-set publishedAt when status is published
   if (this.isModified('status') && this.status === 'published' && !this.publishedAt) {
     this.publishedAt = Date.now();
   }
-  
+
   next();
 });
 

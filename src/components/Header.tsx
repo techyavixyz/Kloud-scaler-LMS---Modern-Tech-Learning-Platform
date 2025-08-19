@@ -13,6 +13,7 @@ const Header = () => {
     { name: 'Home', path: '/' },
     { name: 'Courses', path: '/courses' },
     { name: 'Blog', path: '/blog' },
+    
   ];
 
   const adminItems = user?.role === 'admin' ? [{ name: 'Admin', path: '/admin' }] : [];
