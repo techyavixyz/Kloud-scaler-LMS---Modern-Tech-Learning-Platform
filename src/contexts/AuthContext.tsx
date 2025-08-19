@@ -48,10 +48,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           // Try admin endpoint first, then user endpoint
           let response;
+          const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
           try {
-            response = await axios.get('http://localhost:3001/api/auth/admin/me');
+            response = await axios.get(`${backendUrl}/api/auth/admin/me`);
           } catch (adminError) {
-            response = await axios.get('http://localhost:3001/api/auth/user/me');
+            response = await axios.get(`${backendUrl}/api/auth/user/me`);
           }
           setUser(response.data.user);
         } catch (error) {
@@ -68,7 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, isAdmin: boolean = false) => {
     try {
       const endpoint = isAdmin ? '/api/auth/admin/login' : '/api/auth/user/login';
-      const response = await axios.post(`http://localhost:3001${endpoint}`, {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await axios.post(`${backendUrl}${endpoint}`, {
         email,
         password
       });

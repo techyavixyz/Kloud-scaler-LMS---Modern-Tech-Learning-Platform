@@ -2,13 +2,25 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Maximize, Settings, Clock } from 'lucide-react';
+import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Maximize, Settings, Clock, ArrowLeft } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 // If using npm: import Hls from 'hls.js';
 
-interface PlaylistItem {
+interface Playlist {
+  _id: string;
   title: string;
-  src: string; // server should return a master.m3u8 path
+  description: string;
+  thumbnail: string;
+  videos: PlaylistVideo[];
+  createdBy: { username: string };
+}
+
+interface PlaylistVideo {
+  title: string;
+  src: string;
+  duration?: string;
+  order: number;
 }
 
 type LevelInfo = {
@@ -23,7 +35,9 @@ const toMbps = (bps?: number | null) =>
 
 const PlaylistPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
+  const { id } = useParams();
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,19 +55,34 @@ const PlaylistPage = () => {
   const [usesNativeHls, setUsesNativeHls] = useState(false);
 
   useEffect(() => {
-    loadPlaylist();
+    if (id) {
+      loadSinglePlaylist(id);
+    } else {
+      loadPlaylists();
+    }
     return () => {
       if (hls) hls.destroy();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [id]);
 
-  const loadPlaylist = async () => {
+  const loadPlaylists = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get('http://localhost:3001/api/playlist');
-      setPlaylist(response.data || []);
-      if (response.data?.length) {
+      const response = await axios.get('http://localhost:3001/api/playlists');
+      setPlaylists(response.data || []);
+    } catch (error) {
+      console.error('Error loading playlists:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadSinglePlaylist = async (playlistId: string) => {
+    try {
+      setIsLoading(true);
+      const response = await axios.get(`http://localhost:3001/api/playlists/${playlistId}`);
+      setSelectedPlaylist(response.data);
+      if (response.data?.videos?.length) {
         loadVideo(0);
       }
     } catch (error) {
@@ -154,7 +183,8 @@ const PlaylistPage = () => {
   };
 
   const loadVideo = (index: number) => {
-    const item = playlist[index];
+    if (!selectedPlaylist?.videos) return;
+    const item = selectedPlaylist.videos[index];
     if (!item || !videoRef.current) return;
 
     const video = videoRef.current;
@@ -200,7 +230,7 @@ const PlaylistPage = () => {
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
     const handleDurationChange = () => setDuration(video.duration);
     const handleEnded = () => {
-      if (currentIndex < playlist.length - 1) {
+      if (selectedPlaylist && currentIndex < selectedPlaylist.videos.length - 1) {
         loadVideo(currentIndex + 1);
       }
     };
@@ -218,7 +248,7 @@ const PlaylistPage = () => {
       video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('ended', handleEnded);
     };
-  }, [currentIndex, playlist.length]);
+  }, [currentIndex, selectedPlaylist?.videos.length]);
 
   // Controls
   const togglePlay = () => {
@@ -295,7 +325,80 @@ const PlaylistPage = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-white text-xl">Loading courses...</div>
+        <div className="text-white text-xl">Loading playlists...</div>
+      </div>
+    );
+  }
+
+  // Show playlist selection if no specific playlist is selected
+  if (!id) {
+    return (
+      <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8 text-center">
+            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Live Class Recordings</h1>
+            <p className="text-gray-300">Choose from our collection of recorded live classes</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {playlists.map((playlist) => (
+              <Link
+                key={playlist._id}
+                to={`/live-class-recording/${playlist._id}`}
+                className="group bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl overflow-hidden hover:bg-white/10 transition-all duration-300 hover:scale-105 hover:border-cyan-500/50"
+              >
+                <div className="relative">
+                  <img
+                    src={playlist.thumbnail}
+                    alt={playlist.title}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Play className="h-16 w-16 text-white" />
+                  </div>
+                  <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-sm">
+                    {playlist.videos?.length || 0} videos
+                  </div>
+                </div>
+
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-cyan-300 transition-colors">
+                    {playlist.title}
+                  </h3>
+                  <p className="text-gray-300 text-sm mb-4 line-clamp-3">
+                    {playlist.description}
+                  </p>
+                  <div className="text-xs text-gray-400">
+                    By {playlist.createdBy.username}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {playlists.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-lg mb-4">No playlists available</div>
+              <p className="text-gray-500">Check back later for new content</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedPlaylist) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-white text-xl mb-4">Playlist not found</div>
+          <Link
+            to="/live-class-recording"
+            className="text-cyan-400 hover:text-cyan-300 transition-colors"
+          >
+            Back to Playlists
+          </Link>
+        </div>
       </div>
     );
   }
@@ -303,9 +406,18 @@ const PlaylistPage = () => {
   return (
     <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {/* Back Button */}
+        <Link
+          to="/live-class-recording"
+          className="inline-flex items-center space-x-2 text-cyan-400 hover:text-cyan-300 transition-colors mb-8"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Playlists</span>
+        </Link>
+
         <div className="mb-8 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Video Courses</h1>
-          <p className="text-gray-300">Master cloud technologies with our comprehensive video library</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">{selectedPlaylist.title}</h1>
+          <p className="text-gray-300">{selectedPlaylist.description}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -412,10 +524,10 @@ const PlaylistPage = () => {
             </div>
 
             {/* Current Video Info */}
-            {playlist[currentIndex] && (
+            {selectedPlaylist.videos[currentIndex] && (
               <div className="mt-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-6">
-                <h2 className="text-xl font-bold text-white mb-2">{playlist[currentIndex].title}</h2>
-                <p className="text-gray-300">Learn the fundamentals and advanced concepts with hands-on demonstrations.</p>
+                  Video {currentIndex + 1} of {selectedPlaylist.videos.length}
+                  {selectedPlaylist.videos[currentIndex].title}
               </div>
             )}
           </div>
@@ -423,9 +535,9 @@ const PlaylistPage = () => {
           {/* Playlist Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
-              <h3 className="text-lg font-bold text-white mb-4">Course Playlist</h3>
+              <h3 className="text-lg font-bold text-white mb-4">Playlist Content</h3>
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {playlist.map((item, index) => (
+                {selectedPlaylist.videos.map((video, index) => (
                   <div
                     key={index}
                     onClick={() => loadVideo(index)}
@@ -441,7 +553,7 @@ const PlaylistPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium truncate ${index === currentIndex ? 'text-white' : 'text-gray-300'}`}>
-                          {item.title}
+                          {video.duration || 'Video'} • Video {index + 1}
                         </p>
                         <p className="text-xs text-gray-500">Video {index + 1} of {playlist.length}</p>
                       </div>
@@ -453,9 +565,6 @@ const PlaylistPage = () => {
           </div>
         </div>
       </div>
-
-      {/* If you are NOT importing hls.js via npm, include CDN once in your app root (not inside this component render tree) */}
-      {/* <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script> */}
     </div>
   );
 };

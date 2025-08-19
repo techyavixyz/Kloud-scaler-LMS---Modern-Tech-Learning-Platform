@@ -237,6 +237,7 @@ import adminRoutes from "./routes/admin.js";
 import coursesRoutes from "./routes/courses.js";
 import blogRoutes from "./routes/blog.js";
 import toolsRoutes from "./routes/tools.js";
+import playlistRoutes from "./routes/playlist.js";
 
 dotenv.config();
 
@@ -249,6 +250,9 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve static files
+app.use('/uploads', express.static('uploads'));
 
 // === MongoDB Connection ===
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -384,6 +388,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/tools", toolsRoutes);
+app.use("/api/playlists", playlistRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
@@ -391,18 +396,9 @@ app.get("/api/health", (req, res) => {
 });
 
 // Optimized Playlist API
-app.get("/api/playlist", async (req, res) => {
-  console.log("📥 GET /api/playlist");
-  const isFresh = Date.now() - playlistCache.timestamp < PLAYLIST_TTL;
-  if (isFresh && playlistCache.data.length > 0) {
-    console.log("⚡ Serving playlist from cache");
-    res.json(playlistCache.data);
-    refreshPlaylist(); // async background refresh
-  } else {
-    console.log("🕒 Cache empty/expired, fetching from Drive...");
-    await refreshPlaylist();
-    res.json(playlistCache.data);
-  }
+// Legacy endpoint - redirect to new playlist API
+app.get("/api/playlist", (req, res) => {
+  res.redirect('/api/playlists');
 });
 
 // Proxy for m3u8

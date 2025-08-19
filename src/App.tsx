@@ -43,6 +43,14 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/live-class-recording/:id"
+                element={
+                  <ProtectedRoute>
+                    <PlaylistPage />
+                  </ProtectedRoute>
+                } 
+              />
 
               <Route 
                 path="/course/:id" 

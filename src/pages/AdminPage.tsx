@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BookOpen, FileText, Settings, Plus, Edit, Trash2, ExternalLink } from 'lucide-react';
+import { Users, BookOpen, FileText, Settings, Plus, Edit, Trash2, ExternalLink, PlayCircle, Upload, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -35,14 +35,32 @@ interface BlogPost {
   views: number;
 }
 
+interface Playlist {
+  _id: string;
+  title: string;
+  description: string;
+  googleDriveFolderId: string;
+  thumbnail: string;
+  isActive: boolean;
+  createdBy: { username: string };
+  videos: Array<{
+    title: string;
+    src: string;
+    duration: string;
+    order: number;
+  }>;
+  createdAt: string;
+}
+
 const AdminPage = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<User[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState<'user' | 'course' | 'blog'>('user');
+  const [modalType, setModalType] = useState<'user' | 'course' | 'blog' | 'playlist'>('user');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
   const [passwordChangeForm, setPasswordChangeForm] = useState({
@@ -81,6 +99,13 @@ const AdminPage = () => {
     featuredImage: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
   });
 
+  const [playlistForm, setPlaylistForm] = useState({
+    title: '',
+    description: '',
+    googleDriveFolderId: '',
+    thumbnail: null as File | null
+  });
+
   useEffect(() => {
     loadData();
     // Check if admin needs to change default password
@@ -92,15 +117,17 @@ const AdminPage = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [usersRes, coursesRes, blogRes] = await Promise.all([
+      const [usersRes, coursesRes, blogRes, playlistsRes] = await Promise.all([
         axios.get('http://localhost:3001/api/admin/users'),
         axios.get('http://localhost:3001/api/admin/courses'),
-        axios.get('http://localhost:3001/api/admin/blog-posts')
+        axios.get('http://localhost:3001/api/admin/blog-posts'),
+        axios.get('http://localhost:3001/api/admin/playlists')
       ]);
 
       setUsers(usersRes.data);
       setCourses(coursesRes.data);
       setBlogPosts(blogRes.data);
+      setPlaylists(playlistsRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -128,10 +155,23 @@ const AdminPage = () => {
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const formData = new FormData();
+      Object.keys(courseForm).forEach(key => {
+        if (key === 'thumbnail' && courseForm[key] instanceof File) {
+          formData.append(key, courseForm[key]);
+        } else {
+          formData.append(key, courseForm[key]);
+        }
+      });
+
       if (editingItem) {
-        await axios.put(`http://localhost:3001/api/admin/courses/${editingItem._id}`, courseForm);
+        await axios.put(`http://localhost:3001/api/admin/courses/${editingItem._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       } else {
-        await axios.post('http://localhost:3001/api/admin/courses', courseForm);
+        await axios.post('http://localhost:3001/api/admin/courses', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
       loadData();
       setShowModal(false);
@@ -142,7 +182,7 @@ const AdminPage = () => {
         category: 'AWS',
         difficulty: 'Beginner',
         duration: '',
-        thumbnail: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
+        thumbnail: null
       });
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error saving course');
@@ -152,15 +192,25 @@ const AdminPage = () => {
   const handleCreateBlog = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const blogData = {
-        ...blogForm,
-        tags: blogForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-      };
+      const formData = new FormData();
+      Object.keys(blogForm).forEach(key => {
+        if (key === 'featuredImage' && blogForm[key] instanceof File) {
+          formData.append(key, blogForm[key]);
+        } else if (key === 'tags') {
+          formData.append(key, blogForm.tags);
+        } else {
+          formData.append(key, blogForm[key]);
+        }
+      });
 
       if (editingItem) {
-        await axios.put(`http://localhost:3001/api/admin/blog-posts/${editingItem._id}`, blogData);
+        await axios.put(`http://localhost:3001/api/admin/blog-posts/${editingItem._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       } else {
-        await axios.post('http://localhost:3001/api/admin/blog-posts', blogData);
+        await axios.post('http://localhost:3001/api/admin/blog-posts', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
       loadData();
       setShowModal(false);
@@ -172,10 +222,55 @@ const AdminPage = () => {
         category: '',
         tags: '',
         status: 'draft',
-        featuredImage: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
+        featuredImage: null
       });
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error saving blog post');
+    }
+  };
+
+  const handleCreatePlaylist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append('title', playlistForm.title);
+      formData.append('description', playlistForm.description);
+      formData.append('googleDriveFolderId', playlistForm.googleDriveFolderId);
+      if (playlistForm.thumbnail) {
+        formData.append('thumbnail', playlistForm.thumbnail);
+      }
+
+      if (editingItem) {
+        await axios.put(`http://localhost:3001/api/playlists/admin/${editingItem._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        await axios.post('http://localhost:3001/api/playlists/admin/create', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      
+      loadData();
+      setShowModal(false);
+      setEditingItem(null);
+      setPlaylistForm({
+        title: '',
+        description: '',
+        googleDriveFolderId: '',
+        thumbnail: null
+      });
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Error saving playlist');
+    }
+  };
+
+  const refreshPlaylistVideos = async (playlistId: string) => {
+    try {
+      await axios.post(`http://localhost:3001/api/playlists/admin/${playlistId}/refresh`);
+      loadData();
+      alert('Playlist videos refreshed successfully!');
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Error refreshing playlist');
     }
   };
 
@@ -183,7 +278,11 @@ const AdminPage = () => {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      await axios.delete(`http://localhost:3001/api/admin/${type}/${id}`);
+      if (type === 'playlists') {
+        await axios.delete(`http://localhost:3001/api/playlists/admin/${id}`);
+      } else {
+        await axios.delete(`http://localhost:3001/api/admin/${type}/${id}`);
+      }
       loadData();
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error deleting item');
@@ -223,7 +322,7 @@ const AdminPage = () => {
     }
   };
 
-  const openModal = (type: 'user' | 'course' | 'blog', item?: any) => {
+  const openModal = (type: 'user' | 'course' | 'blog' | 'playlist', item?: any) => {
     setModalType(type);
     setEditingItem(item);
     
@@ -242,7 +341,7 @@ const AdminPage = () => {
           category: item.category,
           difficulty: item.difficulty,
           duration: item.duration,
-          thumbnail: item.thumbnail
+          thumbnail: null // Reset file input
         });
       } else if (type === 'blog') {
         setBlogForm({
@@ -252,7 +351,14 @@ const AdminPage = () => {
           category: item.category,
           tags: item.tags.join(', '),
           status: item.status,
-          featuredImage: item.featuredImage
+          featuredImage: null // Reset file input
+        });
+      } else if (type === 'playlist') {
+        setPlaylistForm({
+          title: item.title,
+          description: item.description,
+          googleDriveFolderId: item.googleDriveFolderId,
+          thumbnail: null // Reset file input
         });
       }
     }
@@ -264,6 +370,7 @@ const AdminPage = () => {
     { id: 'users', name: 'Users', icon: Users, count: users.length },
     { id: 'courses', name: 'Courses', icon: BookOpen, count: courses.length },
     { id: 'blog', name: 'Blog Posts', icon: FileText, count: blogPosts.length },
+    { id: 'playlists', name: 'Playlists', icon: PlayCircle, count: playlists.length },
     { id: 'settings', name: 'Settings', icon: Settings, count: 0 }
   ];
 
@@ -493,6 +600,75 @@ const AdminPage = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Playlists Tab */}
+          {activeTab === 'playlists' && (
+            <div>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-white">Playlist Management</h2>
+                <button
+                  onClick={() => openModal('playlist')}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Playlist</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {playlists.map((playlist) => (
+                  <div key={playlist._id} className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+                    <img
+                      src={playlist.thumbnail}
+                      alt={playlist.title}
+                      className="w-full h-32 object-cover"
+                    />
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <span className={`px-2 py-1 rounded-full text-xs ${
+                          playlist.isActive 
+                            ? 'bg-green-500/20 text-green-300' 
+                            : 'bg-red-500/20 text-red-300'
+                        }`}>
+                          {playlist.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => refreshPlaylistVideos(playlist._id)}
+                            className="text-blue-400 hover:text-blue-300"
+                            title="Refresh videos from Google Drive"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => openModal('playlist', playlist)}
+                            className="text-cyan-400 hover:text-cyan-300"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete('playlists', playlist._id)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      <h3 className="text-white font-semibold mb-2">{playlist.title}</h3>
+                      <p className="text-gray-300 text-sm mb-3 line-clamp-2">{playlist.description}</p>
+                      <div className="flex justify-between items-center text-xs text-gray-400">
+                        <span>{playlist.videos?.length || 0} videos</span>
+                        <span>By {playlist.createdBy.username}</span>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-500">
+                        Folder ID: {playlist.googleDriveFolderId}
                       </div>
                     </div>
                   </div>
@@ -741,6 +917,15 @@ const AdminPage = () => {
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Thumbnail Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setCourseForm({...courseForm, thumbnail: e.target.files?.[0] || null})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
                     <div className="flex space-x-3 pt-4">
                       <button
                         type="submit"
@@ -827,12 +1012,84 @@ const AdminPage = () => {
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Featured Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setBlogForm({...blogForm, featuredImage: e.target.files?.[0] || null})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
                     <div className="flex space-x-3 pt-4">
                       <button
                         type="submit"
                         className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
                       >
                         {editingItem ? 'Update' : 'Create'} Post
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowModal(false)}
+                        className="bg-gray-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-700 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {modalType === 'playlist' && (
+                  <form onSubmit={handleCreatePlaylist} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={playlistForm.title}
+                        onChange={(e) => setPlaylistForm({...playlistForm, title: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                      <textarea
+                        rows={3}
+                        value={playlistForm.description}
+                        onChange={(e) => setPlaylistForm({...playlistForm, description: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Google Drive Folder ID</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter Google Drive folder ID"
+                        value={playlistForm.googleDriveFolderId}
+                        onChange={(e) => setPlaylistForm({...playlistForm, googleDriveFolderId: e.target.value})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        Get this from the Google Drive folder URL: https://drive.google.com/drive/folders/[FOLDER_ID]
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Thumbnail Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        required={!editingItem}
+                        onChange={(e) => setPlaylistForm({...playlistForm, thumbnail: e.target.files?.[0] || null})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        type="submit"
+                        className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:from-cyan-600 hover:to-blue-700 transition-all"
+                      >
+                        {editingItem ? 'Update' : 'Create'} Playlist
                       </button>
                       <button
                         type="button"

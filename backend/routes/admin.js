@@ -3,9 +3,56 @@ import User from '../models/User.js';
 import Course from '../models/Course.js';
 import BlogPost from '../models/BlogPost.js';
 import Tool from '../models/Tool.js';
+import Playlist from '../models/Playlist.js';
 import { authenticateAdmin } from '../middleware/auth.js';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
 
 const router = express.Router();
+
+// Configure multer for various uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    let uploadDir = 'uploads/';
+    if (file.fieldname === 'featuredImage') {
+      uploadDir += 'blog-thumbnails';
+    } else if (file.fieldname === 'thumbnail') {
+      uploadDir += 'course-thumbnails';
+    } else {
+      uploadDir += 'general';
+    }
+    
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const prefix = file.fieldname === 'featuredImage' ? 'blog-' : 
+                   file.fieldname === 'thumbnail' ? 'course-' : 'file-';
+    cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 // Apply admin auth middleware to all admin routes
 router.use(authenticateAdmin);
@@ -101,10 +148,16 @@ router.get('/courses', async (req, res) => {
 });
 
 // Create course
-router.post('/courses', async (req, res) => {
+router.post('/courses', upload.single('thumbnail'), async (req, res) => {
   try {
+    let thumbnailUrl = 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'; // default
+    if (req.file) {
+      thumbnailUrl = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/course-thumbnails/${req.file.filename}`;
+    }
+
     const course = new Course({
       ...req.body,
+      thumbnail: thumbnailUrl,
       createdBy: req.user._id
     });
     
@@ -113,25 +166,40 @@ router.post('/courses', async (req, res) => {
     
     res.status(201).json(course);
   } catch (error) {
+    if (req.file) {
+      fs.unlink(req.file.path, () => {});
+    }
     res.status(400).json({ error: error.message });
   }
 });
 
 // Update course
-router.put('/courses/:id', async (req, res) => {
+router.put('/courses/:id', upload.single('thumbnail'), async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    
+    if (req.file) {
+      updateData.thumbnail = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/course-thumbnails/${req.file.filename}`;
+    }
+
     const course = await Course.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     ).populate('createdBy', 'username email');
     
     if (!course) {
+      if (req.file) {
+        fs.unlink(req.file.path, () => {});
+      }
       return res.status(404).json({ error: 'Course not found' });
     }
     
     res.json(course);
   } catch (error) {
+    if (req.file) {
+      fs.unlink(req.file.path, () => {});
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -163,10 +231,16 @@ router.get('/blog-posts', async (req, res) => {
 });
 
 // Create blog post
-router.post('/blog-posts', async (req, res) => {
+router.post('/blog-posts', upload.single('featuredImage'), async (req, res) => {
   try {
+    let featuredImage = 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'; // default
+    if (req.file) {
+      featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.file.filename}`;
+    }
+
     const post = new BlogPost({
       ...req.body,
+      featuredImage,
       author: req.user._id
     });
     
@@ -175,25 +249,40 @@ router.post('/blog-posts', async (req, res) => {
     
     res.status(201).json(post);
   } catch (error) {
+    if (req.file) {
+      fs.unlink(req.file.path, () => {});
+    }
     res.status(400).json({ error: error.message });
   }
 });
 
 // Update blog post
-router.put('/blog-posts/:id', async (req, res) => {
+router.put('/blog-posts/:id', upload.single('featuredImage'), async (req, res) => {
   try {
+    const updateData = { ...req.body };
+    
+    if (req.file) {
+      updateData.featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.file.filename}`;
+    }
+
     const post = await BlogPost.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     ).populate('author', 'username email');
     
     if (!post) {
+      if (req.file) {
+        fs.unlink(req.file.path, () => {});
+      }
       return res.status(404).json({ error: 'Blog post not found' });
     }
     
     res.json(post);
   } catch (error) {
+    if (req.file) {
+      fs.unlink(req.file.path, () => {});
+    }
     res.status(400).json({ error: error.message });
   }
 });
@@ -268,6 +357,19 @@ router.delete('/tools/:id', async (req, res) => {
       return res.status(404).json({ error: 'Tool not found' });
     }
     res.json({ message: 'Tool deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// === PLAYLIST MANAGEMENT ===
+// Get all playlists
+router.get('/playlists', async (req, res) => {
+  try {
+    const playlists = await Playlist.find()
+      .populate('createdBy', 'username email')
+      .sort({ createdAt: -1 });
+    res.json(playlists);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
