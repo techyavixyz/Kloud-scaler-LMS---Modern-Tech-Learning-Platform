@@ -302,11 +302,16 @@ async function authorize() {
   if (fs.existsSync(TOKEN_PATH)) {
     const token = JSON.parse(fs.readFileSync(TOKEN_PATH, "utf8"));
     oAuth2Client.setCredentials(token);
-    if (!token.expiry_date || token.expiry_date < Date.now()) {
-      throw new Error("Token expired");
+    
+    // Check token expiry
+    if (token.expiry_date && token.expiry_date < Date.now()) {
+      console.log("⚠️ Token expired, need re-authentication");
+      throw new Error("Token expired - visit /oauth to re-authenticate");
     }
+    
     return oAuth2Client;
   } else {
+    console.log("⚠️ No token.json found, visit /oauth to authenticate");
     throw new Error("No token.json found");
   }
 }
@@ -318,17 +323,66 @@ app.get("/oauth", (req, res) => {
     access_type: "offline",
     scope: ["https://www.googleapis.com/auth/drive.readonly"],
   });
-  res.send(`<a href="${authUrl}" target="_blank">Authenticate with Google</a>`);
+  res.send(`
+    <html>
+      <head><title>Google Drive Authentication</title></head>
+      <body style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>Google Drive Authentication Required</h2>
+        <p>Click the link below to authenticate with Google Drive:</p>
+        <a href="${authUrl}" target="_blank" style="background: #4285f4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+          Authenticate with Google Drive
+        </a>
+        <p style="margin-top: 20px; color: #666;">
+          After authentication, you'll be redirected back and can close this window.
+        </p>
+      </body>
+    </html>
+  `);
 });
 
 app.get("/oauth2callback", async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.status(400).send("Missing code");
-  const oAuth2Client = loadOAuthClient();
-  const { tokens } = await oAuth2Client.getToken(code);
-  oAuth2Client.setCredentials(tokens);
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
-  res.send("✅ Authentication successful! Restart the server.");
+  if (!code) {
+    return res.status(400).send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>❌ Authentication Failed</h2>
+          <p>Missing authorization code. Please try again.</p>
+          <a href="/oauth">← Back to Authentication</a>
+        </body>
+      </html>
+    `);
+  }
+  
+  try {
+    const oAuth2Client = loadOAuthClient();
+    const { tokens } = await oAuth2Client.getToken(code);
+    oAuth2Client.setCredentials(tokens);
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens));
+    
+    res.send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>✅ Authentication Successful!</h2>
+          <p>Google Drive access has been configured successfully.</p>
+          <p>You can now close this window and use the video streaming features.</p>
+        </body>
+      </html>
+    `);
+    
+    console.log("✅ Google Drive authentication successful");
+  } catch (error) {
+    console.error("❌ OAuth callback error:", error);
+    res.status(500).send(`
+      <html>
+        <body style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>❌ Authentication Error</h2>
+          <p>Failed to complete authentication: ${error.message}</p>
+          <a href="/oauth">← Try Again</a>
+        </body>
+      </html>
+    `);
+  }
 });
 
 // === Recursive walker for Drive ===
@@ -358,28 +412,6 @@ async function findMasterFiles(drive, parentId, prefix = "") {
   return items;
 }
 
-// === Global Playlist Cache ===
-let playlistCache = { data: [], timestamp: 0, refreshing: false };
-const PLAYLIST_TTL = 5 * 60 * 1000; // 5 minutes
-
-async function refreshPlaylist() {
-  if (playlistCache.refreshing) return;
-  playlistCache.refreshing = true;
-  try {
-    const auth = await authorize();
-    const drive = google.drive({ version: "v3", auth });
-    const items = await findMasterFiles(drive, FOLDER_VIDEOS);
-    items.sort((a, b) => b.mtime - a.mtime);
-    playlistCache.data = items.map(({ title, src }) => ({ title, src }));
-    playlistCache.timestamp = Date.now();
-    console.log(`✅ Playlist refreshed (${playlistCache.data.length} items)`);
-  } catch (err) {
-    console.error("❌ Failed to refresh playlist:", err.message);
-  } finally {
-    playlistCache.refreshing = false;
-  }
-}
-
 // === API Routes ===
 
 // Core Routes
@@ -392,10 +424,13 @@ app.use("/api/playlists", playlistRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "Backend is running" });
+  res.json({ 
+    status: "ok", 
+    message: "Backend is running",
+    googleDrive: fs.existsSync(TOKEN_PATH) ? "authenticated" : "not authenticated"
+  });
 });
 
-// Optimized Playlist API
 // Legacy endpoint - redirect to new playlist API
 app.get("/api/playlist", (req, res) => {
   res.redirect('/api/playlists');
@@ -403,38 +438,66 @@ app.get("/api/playlist", (req, res) => {
 
 // Proxy for m3u8
 app.get("/api/drive/hls/:id", async (req, res) => {
+  console.log(`📥 GET /api/drive/hls/${req.params.id}`);
   try {
     const fileId = req.params.id;
     const auth = await authorize();
     const drive = google.drive({ version: "v3", auth });
+    
     let file = cacheGet(fileId);
     if (!file) {
-      file = await drive.files.get({ fileId, fields: "id,name,parents,modifiedTime" }).then(r => r.data);
+      file = await drive.files.get({ 
+        fileId, 
+        fields: "id,name,parents,modifiedTime" 
+      }).then(r => r.data);
       cacheSet(fileId, file);
     }
-    const stream = await drive.files.get({ fileId: file.id, alt: "media" }, { responseType: "stream" });
+    
+    const stream = await drive.files.get({ 
+      fileId: file.id, 
+      alt: "media" 
+    }, { responseType: "stream" });
+    
     let content = "";
     stream.data.on("data", chunk => content += chunk.toString());
     stream.data.on("end", async () => {
+      try {
+        // Get .ts segments from the same folder
       const segs = await drive.files.list({
         q: `'${file.parents[0]}' in parents and trashed=false and name contains '.ts'`,
         fields: "files(id,name)",
         pageSize: 1000,
       });
+        segs.data.files.forEach(f => cacheSet(f.name, f));
       const tsMap = Object.fromEntries(segs.data.files.map(f => [f.name, f.id]));
+        
+        // Get variant .m3u8 files from the same folder
       const variants = await drive.files.list({
         q: `'${file.parents[0]}' in parents and trashed=false and name contains '.m3u8'`,
         fields: "files(id,name)",
         pageSize: 100,
       });
       variants.data.files.forEach(f => cacheSet(f.name, f));
+        
+        // Rewrite .ts segment references to use our proxy
       content = content.replace(/([^\s]+\.ts)/g, m => `/api/drive/file/${tsMap[m] || m}`);
+        
+        // Rewrite variant .m3u8 references to use our proxy
       content = content.replace(/([^\s]+\.m3u8)/g, m => {
         const f = cacheGet(m);
         return f ? `/api/drive/hls/${f.id}` : m;
       });
+        
       res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Cache-Control", "no-cache");
       res.send(content);
+        
+        console.log(`✅ Served m3u8 for ${file.name} with ${Object.keys(tsMap).length} segments`);
+      } catch (error) {
+        console.error("❌ Error processing m3u8 content:", error);
+        res.status(500).send("Error processing m3u8");
+      }
     });
   } catch (err) {
     console.error("❌ Error proxying m3u8:", err.message);
@@ -444,13 +507,24 @@ app.get("/api/drive/hls/:id", async (req, res) => {
 
 // Proxy for TS segments
 app.get("/api/drive/file/:id", async (req, res) => {
+  console.log(`📥 GET /api/drive/file/${req.params.id}`);
   try {
     const auth = await authorize();
     const drive = google.drive({ version: "v3", auth });
     const fileId = req.params.id;
-    const file = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream" });
+    
+    const file = await drive.files.get({ 
+      fileId, 
+      alt: "media" 
+    }, { responseType: "stream" });
+    
     res.setHeader("Content-Type", "video/mp2t");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour
+    
     file.data.pipe(res);
+    
+    console.log(`✅ Served TS segment ${fileId}`);
   } catch (err) {
     console.error("❌ Error proxying segment:", err.message);
     res.status(500).send("Error fetching segment");
@@ -466,6 +540,12 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`✅ Server running at http://localhost:${PORT}`);
   console.log(`👉 Health: http://localhost:${PORT}/api/health`);
-  console.log(`👉 Playlist: http://localhost:${PORT}/api/playlist`);
-  console.log(`👉 If first time, visit: http://localhost:${PORT}/oauth`);
+  console.log(`👉 Playlists: http://localhost:${PORT}/api/playlists`);
+  
+  // Check Google Drive authentication status
+  if (!fs.existsSync(TOKEN_PATH)) {
+    console.log(`⚠️  Google Drive not authenticated - visit: http://localhost:${PORT}/oauth`);
+  } else {
+    console.log(`✅ Google Drive authenticated`);
+  }
 });

@@ -5,7 +5,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Maximize, Settings, Clock, ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
-// If using npm: import Hls from 'hls.js';
 
 interface Playlist {
   _id: string;
@@ -21,6 +20,7 @@ interface PlaylistVideo {
   src: string;
   duration?: string;
   order: number;
+  fileId?: string;
 }
 
 type LevelInfo = {
@@ -48,6 +48,7 @@ const PlaylistPage = () => {
 
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   const [hls, setHls] = useState<any>(null);
   const [levels, setLevels] = useState<LevelInfo[]>([]);
@@ -68,7 +69,8 @@ const PlaylistPage = () => {
   const loadPlaylists = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get('http://localhost:3001/api/playlists');
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await axios.get(`${backendUrl}/api/playlists`);
       setPlaylists(response.data || []);
     } catch (error) {
       console.error('Error loading playlists:', error);
@@ -80,13 +82,17 @@ const PlaylistPage = () => {
   const loadSinglePlaylist = async (playlistId: string) => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`http://localhost:3001/api/playlists/${playlistId}`);
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+      const response = await axios.get(`${backendUrl}/api/playlists/${playlistId}`);
       setSelectedPlaylist(response.data);
       if (response.data?.videos?.length) {
         loadVideo(0);
+      } else {
+        setVideoError('No videos found in this playlist');
       }
     } catch (error) {
       console.error('Error loading playlist:', error);
+      setVideoError('Failed to load playlist');
     } finally {
       setIsLoading(false);
     }
@@ -129,15 +135,20 @@ const PlaylistPage = () => {
 
   const attachHls = (src: string) => {
     const video = videoRef.current!;
-    // Prefer import if available; otherwise use global
-    // const HlsLib: any = Hls;
     const HlsLib: any = (window as any).Hls;
 
+    if (!HlsLib) {
+      setVideoError('HLS.js not loaded. Please refresh the page.');
+      return;
+    }
+
     const newHls = new HlsLib({
-      // Optional: tweak to your needs
-      // enableWorker: true,
-      // capLevelToPlayerSize: true,
-      // maxBufferLength: 30,
+      enableWorker: true,
+      capLevelToPlayerSize: true,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
+      startLevel: -1, // Auto quality
+      debug: false
     });
 
     newHls.attachMedia(video);
@@ -149,9 +160,10 @@ const PlaylistPage = () => {
       // default to Auto
       newHls.currentLevel = -1;
       setSelectedLevel(-1);
-      setCurrentIndex((prev) => prev); // keep as-is
+      setVideoError(null);
       video.play().catch(() => {/* ignore autoplay block */});
       setIsPlaying(!video.paused);
+      console.log(`✅ HLS manifest loaded with ${list.length} quality levels`);
     });
 
     newHls.on(HlsLib.Events.LEVEL_SWITCHED, (_e: any, data: any) => {
@@ -164,18 +176,25 @@ const PlaylistPage = () => {
     });
 
     newHls.on(HlsLib.Events.ERROR, (_e: any, data: any) => {
+      console.error('HLS Error:', data);
       if (data?.fatal) {
         switch (data.type) {
           case HlsLib.ErrorTypes.NETWORK_ERROR:
+            console.log('Network error, trying to recover...');
             newHls.startLoad();
             break;
           case HlsLib.ErrorTypes.MEDIA_ERROR:
+            console.log('Media error, trying to recover...');
             newHls.recoverMediaError();
             break;
           default:
+            console.error('Fatal HLS error, destroying player');
+            setVideoError('Video playback error. Please try refreshing.');
             newHls.destroy();
             break;
         }
+      } else {
+        console.warn('Non-fatal HLS error:', data);
       }
     });
 
@@ -188,7 +207,11 @@ const PlaylistPage = () => {
     if (!item || !videoRef.current) return;
 
     const video = videoRef.current;
-    const src = `http://localhost:3001${item.src}`;
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+    const src = `${backendUrl}${item.src}`;
+    
+    console.log(`Loading video ${index + 1}: ${item.title}`);
+    console.log(`Video source: ${src}`);
 
     // cleanup previous
     if (hls) {
@@ -198,6 +221,7 @@ const PlaylistPage = () => {
     setLevels([]);
     setSelectedLevel(-1);
     setShowQualityMenu(false);
+    setVideoError(null);
 
     // If Hls.js is supported, use it; otherwise try native HLS
     const HlsLib = (window as any).Hls; // or imported Hls
@@ -211,12 +235,20 @@ const PlaylistPage = () => {
       video.src = src;
       const onLoaded = () => {
         setCurrentIndex(index);
+        setVideoError(null);
         video.play().catch(() => {/* ignore autoplay block */});
         setIsPlaying(!video.paused);
+        console.log('✅ Native HLS video loaded');
+      };
+      const onError = () => {
+        setVideoError('Failed to load video. Please try another video.');
+        console.error('Native HLS video error');
       };
       video.addEventListener('loadedmetadata', onLoaded, { once: true });
+      video.addEventListener('error', onError, { once: true });
     } else {
-      console.error('HLS not supported in this browser.');
+      setVideoError('HLS video playback is not supported in this browser.');
+      console.error('HLS not supported in this browser');
     }
   };
 
@@ -234,12 +266,17 @@ const PlaylistPage = () => {
         loadVideo(currentIndex + 1);
       }
     };
+    const handleError = () => {
+      setVideoError('Video playback error occurred');
+      console.error('Video element error');
+    };
 
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('durationchange', handleDurationChange);
     video.addEventListener('ended', handleEnded);
+    video.addEventListener('error', handleError);
 
     return () => {
       video.removeEventListener('play', handlePlay);
@@ -247,6 +284,7 @@ const PlaylistPage = () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('durationchange', handleDurationChange);
       video.removeEventListener('ended', handleEnded);
+      video.removeEventListener('error', handleError);
     };
   }, [currentIndex, selectedPlaylist?.videos.length]);
 
@@ -424,6 +462,25 @@ const PlaylistPage = () => {
           {/* Video Player */}
           <div className="lg:col-span-3">
             <div className="relative bg-black rounded-xl overflow-hidden group">
+              {videoError && (
+                <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10">
+                  <div className="text-center text-white">
+                    <div className="text-xl mb-4">⚠️ {videoError}</div>
+                    <button
+                      onClick={() => {
+                        setVideoError(null);
+                        if (selectedPlaylist?.videos?.length) {
+                          loadVideo(currentIndex);
+                        }
+                      }}
+                      className="bg-cyan-500 hover:bg-cyan-600 px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              )}
+              
               <video
                 ref={videoRef}
                 className="w-full aspect-video bg-black"
@@ -526,8 +583,12 @@ const PlaylistPage = () => {
             {/* Current Video Info */}
             {selectedPlaylist.videos[currentIndex] && (
               <div className="mt-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-6">
-                  Video {currentIndex + 1} of {selectedPlaylist.videos.length}
+                <h2 className="text-xl font-bold text-white mb-2">
                   {selectedPlaylist.videos[currentIndex].title}
+                </h2>
+                <p className="text-gray-300">
+                  Video {currentIndex + 1} of {selectedPlaylist.videos.length}
+                </p>
               </div>
             )}
           </div>
@@ -553,9 +614,11 @@ const PlaylistPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm font-medium truncate ${index === currentIndex ? 'text-white' : 'text-gray-300'}`}>
-                          {video.duration || 'Video'} • Video {index + 1}
+                          {video.title || `Video ${index + 1}`}
                         </p>
-                        <p className="text-xs text-gray-500">Video {index + 1} of {playlist.length}</p>
+                        <p className="text-xs text-gray-500">
+                          {video.duration || 'Video'} • {index + 1} of {selectedPlaylist.videos.length}
+                        </p>
                       </div>
                     </div>
                   </div>
