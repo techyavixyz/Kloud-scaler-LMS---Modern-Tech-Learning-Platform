@@ -382,10 +382,7 @@ const CourseDetailPage = () => {
                 <p className="text-gray-300">
                   Video {currentVideoIndex + 1} of {course.playlist.length}
                 </p>
-                <div className="mt-4 text-sm text-gray-400">
-                  <p><strong>Keyboard shortcuts:</strong></p>
-                  <p>Space: Play/Pause • ←/→: Skip 10s • ↑/↓: Volume • M: Mute • F: Fullscreen</p>
-                </div>
+
               </div>
             )}
           </div>
