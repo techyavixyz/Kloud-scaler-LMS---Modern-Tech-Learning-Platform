@@ -34,6 +34,49 @@ const CourseDetailPage = () => {
   const [hls, setHls] = useState<any>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
 
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!videoRef.current) return;
+      
+      if (e.target === document.body || videoRef.current.contains(e.target as Node)) {
+        switch (e.code) {
+          case 'Space':
+            e.preventDefault();
+            togglePlay();
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            skipTime(-10);
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            skipTime(10);
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            adjustVolume(0.1);
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            adjustVolume(-0.1);
+            break;
+          case 'KeyM':
+            e.preventDefault();
+            toggleMute();
+            break;
+          case 'KeyF':
+            e.preventDefault();
+            toggleFullscreen();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   useEffect(() => {
     loadCourse();
   }, [id]);
@@ -148,6 +191,58 @@ const CourseDetailPage = () => {
     videoRef.current.currentTime = pos * duration;
   };
 
+  const skipTime = (seconds: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + seconds));
+  };
+
+  const handleVolumeChange = (e: React.MouseEvent<HTMLDivElement>) => {
+    const v = videoRef.current;
+    if (!v) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) / rect.width;
+    const newVolume = Math.max(0, Math.min(1, pos));
+    
+    v.volume = newVolume;
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
+  };
+
+  const adjustVolume = (delta: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    const newVolume = Math.max(0, Math.min(1, v.volume + delta));
+    v.volume = newVolume;
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
+  };
+
+  const toggleMute = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    
+    if (isMuted) {
+      v.volume = volume;
+      setIsMuted(false);
+    } else {
+      v.volume = 0;
+      setIsMuted(true);
+    }
+  };
+
+  const toggleFullscreen = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      v.requestFullscreen();
+    }
+  };
+
   const formatTime = (time: number) => {
     if (!time || isNaN(time)) return '00:00';
     const minutes = Math.floor(time / 60);
@@ -208,12 +303,23 @@ const CourseDetailPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Video Player */}
           <div className="lg:col-span-3">
-            <div className="relative bg-black rounded-xl overflow-hidden group">
+            <div className="relative bg-black rounded-xl overflow-hidden group" style={{ aspectRatio: '16/9' }}>
               <video
                 ref={videoRef}
-                className="w-full aspect-video bg-black"
+                className="w-full h-full bg-black object-contain"
                 poster="https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg"
+                tabIndex={0}
               />
+
+              {/* Center Play/Pause Button */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <button
+                  onClick={togglePlay}
+                  className="bg-black/50 hover:bg-black/70 text-white p-4 rounded-full transition-all pointer-events-auto"
+                >
+                  {isPlaying ? <Pause className="h-12 w-12" /> : <Play className="h-12 w-12" />}
+                </button>
+              </div>
 
               {/* Custom Controls */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -247,6 +353,15 @@ const CourseDetailPage = () => {
                   </div>
 
                   <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <button onClick={toggleMute} className="text-white hover:text-cyan-300 transition-colors">
+                        {isMuted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                      </button>
+                      <div className="w-20 h-1 bg-white/20 rounded-full cursor-pointer" onClick={handleVolumeChange}>
+                        <div className="h-full bg-white rounded-full" style={{ width: `${isMuted ? 0 : volume * 100}%` }} />
+                      </div>
+                      <span className="text-xs text-white/70 min-w-[3ch]">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
+                    </div>
                     <button className="text-white hover:text-cyan-300 transition-colors">
                       <Settings className="h-5 w-5" />
                     </button>
@@ -267,6 +382,10 @@ const CourseDetailPage = () => {
                 <p className="text-gray-300">
                   Video {currentVideoIndex + 1} of {course.playlist.length}
                 </p>
+                <div className="mt-4 text-sm text-gray-400">
+                  <p><strong>Keyboard shortcuts:</strong></p>
+                  <p>Space: Play/Pause • ←/→: Skip 10s • ↑/↓: Volume • M: Mute • F: Fullscreen</p>
+                </div>
               </div>
             )}
           </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, FileText, Settings, Plus, Edit, Trash2, ExternalLink, PlayCircle, Upload, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import RichTextEditor from '../components/RichTextEditor';
 
 interface User {
   _id: string;
@@ -96,7 +97,8 @@ const AdminPage = () => {
     category: '',
     tags: '',
     status: 'draft',
-    featuredImage: 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'
+    featuredImage: null as File | null,
+    image: null as File | null
   });
 
   const [playlistForm, setPlaylistForm] = useState({
@@ -193,8 +195,57 @@ const AdminPage = () => {
     e.preventDefault();
     try {
       const formData = new FormData();
+      
+      // Add text fields
+      formData.append('title', blogForm.title);
+      formData.append('excerpt', blogForm.excerpt);
+      formData.append('content', blogForm.content);
+      formData.append('category', blogForm.category);
+      formData.append('status', blogForm.status);
+      formData.append('tags', blogForm.tags);
+      
+      // Add files
+      if (blogForm.featuredImage) {
+        formData.append('featuredImage', blogForm.featuredImage);
+      }
+      if (blogForm.image) {
+        formData.append('image', blogForm.image);
+      }
+
+      if (editingItem) {
+        await axios.put(`http://localhost:3001/api/admin/blog-posts/${editingItem._id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      } else {
+        await axios.post('http://localhost:3001/api/admin/blog-posts', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+      }
+      
+      loadData();
+      setShowModal(false);
+      setEditingItem(null);
+      setBlogForm({
+        title: '',
+        excerpt: '',
+        content: '',
+        category: '',
+        tags: '',
+        status: 'draft',
+        featuredImage: null,
+        image: null
+      });
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Error saving blog post');
+    }
+  };
+
+  const handleCreateBlogOld = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
       Object.keys(blogForm).forEach(key => {
-        if (key === 'featuredImage' && blogForm[key] instanceof File) {
+        if ((key === 'featuredImage' || key === 'image') && blogForm[key] instanceof File) {
           formData.append(key, blogForm[key]);
         } else if (key === 'tags') {
           formData.append(key, blogForm.tags);
@@ -222,7 +273,8 @@ const AdminPage = () => {
         category: '',
         tags: '',
         status: 'draft',
-        featuredImage: null
+        featuredImage: null,
+        image: null
       });
     } catch (error: any) {
       alert(error.response?.data?.error || 'Error saving blog post');
@@ -351,7 +403,8 @@ const AdminPage = () => {
           category: item.category,
           tags: item.tags.join(', '),
           status: item.status,
-          featuredImage: null // Reset file input
+          featuredImage: null, // Reset file input
+          image: null // Reset file input
         });
       } else if (type === 'playlist') {
         setPlaylistForm({
@@ -968,14 +1021,11 @@ const AdminPage = () => {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">Content (Markdown)</label>
-                      <textarea
-                        required
-                        rows={8}
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Content</label>
+                      <RichTextEditor
                         value={blogForm.content}
-                        onChange={(e) => setBlogForm({...blogForm, content: e.target.value})}
-                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                        placeholder="Write your blog post content in Markdown..."
+                        onChange={(content) => setBlogForm({...blogForm, content})}
+                        placeholder="Write your blog post content..."
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1018,6 +1068,15 @@ const AdminPage = () => {
                         type="file"
                         accept="image/*"
                         onChange={(e) => setBlogForm({...blogForm, featuredImage: e.target.files?.[0] || null})}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">Main Blog Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setBlogForm({...blogForm, image: e.target.files?.[0] || null})}
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                       />
                     </div>

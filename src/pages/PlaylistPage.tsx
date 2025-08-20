@@ -52,6 +52,50 @@ const PlaylistPage = () => {
   const [selectedLevel, setSelectedLevel] = useState<number>(-1); // -1 = Auto
   const [usesNativeHls, setUsesNativeHls] = useState(false);
 
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!videoRef.current) return;
+      
+      // Prevent default behavior when video is focused or when target is body
+      if (e.target === document.body || videoRef.current.contains(e.target as Node)) {
+        switch (e.code) {
+          case 'Space':
+            e.preventDefault();
+            togglePlay();
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            skipTime(-10);
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            skipTime(10);
+            break;
+          case 'ArrowUp':
+            e.preventDefault();
+            adjustVolume(0.1);
+            break;
+          case 'ArrowDown':
+            e.preventDefault();
+            adjustVolume(-0.1);
+            break;
+          case 'KeyM':
+            e.preventDefault();
+            toggleMute();
+            break;
+          case 'KeyF':
+            e.preventDefault();
+            toggleFullscreen();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
   useEffect(() => {
     if (id) {
       loadSinglePlaylist(id);
@@ -291,6 +335,15 @@ const PlaylistPage = () => {
     setIsMuted(newVolume === 0);
   };
 
+  const adjustVolume = (delta: number) => {
+    const v = videoRef.current;
+    if (!v) return;
+    const newVolume = Math.max(0, Math.min(1, v.volume + delta));
+    v.volume = newVolume;
+    setVolume(newVolume);
+    setIsMuted(newVolume === 0);
+  };
+
   const toggleMute = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -436,8 +489,8 @@ const PlaylistPage = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Video Player */}
-          <div className="lg:col-span-3">
-            <div className="relative bg-black rounded-xl overflow-hidden group">
+          <div className="lg:col-span-3 xl:col-span-3">
+            <div className="relative bg-black rounded-xl overflow-hidden group" style={{ aspectRatio: '16/9' }}>
               {videoError && (
                 <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10">
                   <div className="text-center text-white">
@@ -459,11 +512,22 @@ const PlaylistPage = () => {
               
               <video
                 ref={videoRef}
-                className="w-full aspect-video bg-black"
+                className="w-full h-full bg-black object-contain"
                 poster={selectedPlaylist.thumbnail}   
                 playsInline
                 controls={false}
+                tabIndex={0}
               />
+
+              {/* Center Play/Pause Button */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <button
+                  onClick={togglePlay}
+                  className="bg-black/50 hover:bg-black/70 text-white p-4 rounded-full transition-all pointer-events-auto"
+                >
+                  {isPlaying ? <Pause className="h-12 w-12" /> : <Play className="h-12 w-12" />}
+                </button>
+              </div>
 
               {/* Custom Controls */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -504,6 +568,7 @@ const PlaylistPage = () => {
                       <div className="w-20 h-1 bg-white/20 rounded-full cursor-pointer" onClick={handleVolumeChange}>
                         <div className="h-full bg-white rounded-full" style={{ width: `${isMuted ? 0 : volume * 100}%` }} />
                       </div>
+                      <span className="text-xs text-white/70 min-w-[3ch]">{Math.round((isMuted ? 0 : volume) * 100)}%</span>
                     </div>
 
                     {!usesNativeHls && (
@@ -553,14 +618,18 @@ const PlaylistPage = () => {
                 <p className="text-gray-300">
                   Video {currentIndex + 1} of {selectedPlaylist.videos.length}
                 </p>
+                <div className="mt-4 text-sm text-gray-400">
+                  <p><strong>Keyboard shortcuts:</strong></p>
+                  <p>Space: Play/Pause • ←/→: Skip 10s • ↑/↓: Volume • M: Mute • F: Fullscreen</p>
+                </div>
               </div>
             )}
           </div>
 
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 xl:col-span-1">
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
               <h3 className="text-lg font-bold text-white mb-4">Playlist Content</h3>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
+              <div className="space-y-2 max-h-[600px] overflow-y-auto">
                 {selectedPlaylist.videos.map((video, index) => (
                   <div
                     key={index}
