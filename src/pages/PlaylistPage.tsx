@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX, Maximize, Settings, Clock, ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -99,12 +96,10 @@ const PlaylistPage = () => {
   };
 
   const buildLevelList = (rawLevels: any[]): LevelInfo[] => {
-    // Deduplicate by height (common in some manifests) and sort descending by height/bitrate
     const map = new Map<number | 'audioOnly', { index: number; height: number | null; bitrate: number | null }>();
     rawLevels.forEach((lvl, idx) => {
       const h = typeof lvl.height === 'number' && lvl.height > 0 ? lvl.height : null;
       const key = h ?? 'audioOnly';
-      // Keep the highest-bitrate for a given height
       const prev = map.get(key);
       if (!prev || (lvl.bitrate ?? 0) > (prev.bitrate ?? 0)) {
         map.set(key, { index: idx, height: h, bitrate: lvl.bitrate ?? null });
@@ -113,11 +108,9 @@ const PlaylistPage = () => {
 
     const list: LevelInfo[] = Array.from(map.values())
       .sort((a, b) => {
-        // Highest resolution first; audio-only (null height) goes last
         if (a.height === null && b.height !== null) return 1;
         if (b.height === null && a.height !== null) return -1;
         if (a.height !== null && b.height !== null) return b.height - a.height;
-        // both null? sort by bitrate desc
         return (b.bitrate ?? 0) - (a.bitrate ?? 0);
       })
       .map(({ index, height, bitrate }) => ({
@@ -147,7 +140,7 @@ const PlaylistPage = () => {
       capLevelToPlayerSize: true,
       maxBufferLength: 30,
       maxMaxBufferLength: 60,
-      startLevel: -1, // Auto quality
+      startLevel: -1,
       debug: false
     });
 
@@ -157,17 +150,14 @@ const PlaylistPage = () => {
     newHls.on(HlsLib.Events.MANIFEST_PARSED, (_e: any, data: any) => {
       const list = buildLevelList(newHls.levels ?? data.levels ?? []);
       setLevels(list);
-      // default to Auto
       newHls.currentLevel = -1;
       setSelectedLevel(-1);
       setVideoError(null);
-      video.play().catch(() => {/* ignore autoplay block */});
-      setIsPlaying(!video.paused);
+      setIsPlaying(false); // keep paused until user clicks Play
       console.log(`✅ HLS manifest loaded with ${list.length} quality levels`);
     });
 
     newHls.on(HlsLib.Events.LEVEL_SWITCHED, (_e: any, data: any) => {
-      // Keep UI selection in sync when ABR switches
       if (newHls.autoLevelEnabled) {
         setSelectedLevel(-1);
       } else {
@@ -180,21 +170,16 @@ const PlaylistPage = () => {
       if (data?.fatal) {
         switch (data.type) {
           case HlsLib.ErrorTypes.NETWORK_ERROR:
-            console.log('Network error, trying to recover...');
             newHls.startLoad();
             break;
           case HlsLib.ErrorTypes.MEDIA_ERROR:
-            console.log('Media error, trying to recover...');
             newHls.recoverMediaError();
             break;
           default:
-            console.error('Fatal HLS error, destroying player');
             setVideoError('Video playback error. Please try refreshing.');
             newHls.destroy();
             break;
         }
-      } else {
-        console.warn('Non-fatal HLS error:', data);
       }
     });
 
@@ -209,11 +194,9 @@ const PlaylistPage = () => {
     const video = videoRef.current;
     const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
     const src = `${backendUrl}${item.src}`;
-    
-    console.log(`Loading video ${index + 1}: ${item.title}`);
-    console.log(`Video source: ${src}`);
 
-    // cleanup previous
+    console.log(`Loading video ${index + 1}: ${item.title}`);
+
     if (hls) {
       hls.destroy();
       setHls(null);
@@ -223,32 +206,23 @@ const PlaylistPage = () => {
     setShowQualityMenu(false);
     setVideoError(null);
 
-    // If Hls.js is supported, use it; otherwise try native HLS
-    const HlsLib = (window as any).Hls; // or imported Hls
+    const HlsLib = (window as any).Hls;
     if (HlsLib && HlsLib.isSupported()) {
       setUsesNativeHls(false);
       attachHls(src);
       setCurrentIndex(index);
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native (Safari/iOS) – ABR works but manual level selection isn't controllable
       setUsesNativeHls(true);
       video.src = src;
       const onLoaded = () => {
         setCurrentIndex(index);
         setVideoError(null);
-        video.play().catch(() => {/* ignore autoplay block */});
-        setIsPlaying(!video.paused);
+        setIsPlaying(false); // paused until user clicks Play
         console.log('✅ Native HLS video loaded');
       };
-      const onError = () => {
-        setVideoError('Failed to load video. Please try another video.');
-        console.error('Native HLS video error');
-      };
       video.addEventListener('loadedmetadata', onLoaded, { once: true });
-      video.addEventListener('error', onError, { once: true });
     } else {
       setVideoError('HLS video playback is not supported in this browser.');
-      console.error('HLS not supported in this browser');
     }
   };
 
@@ -268,7 +242,6 @@ const PlaylistPage = () => {
     };
     const handleError = () => {
       setVideoError('Video playback error occurred');
-      console.error('Video element error');
     };
 
     video.addEventListener('play', handlePlay);
@@ -292,7 +265,11 @@ const PlaylistPage = () => {
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) v.play(); else v.pause();
+    if (v.paused) {
+      v.play();
+    } else {
+      v.pause();
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -348,14 +325,14 @@ const PlaylistPage = () => {
 
   const selectAuto = () => {
     if (!hls) return;
-    hls.currentLevel = -1; // enable ABR
+    hls.currentLevel = -1;
     setSelectedLevel(-1);
     setShowQualityMenu(false);
   };
 
   const selectLevel = (levelIndex: number) => {
     if (!hls) return;
-    hls.currentLevel = levelIndex; // lock to a specific level
+    hls.currentLevel = levelIndex;
     setSelectedLevel(levelIndex);
     setShowQualityMenu(false);
   };
@@ -368,7 +345,6 @@ const PlaylistPage = () => {
     );
   }
 
-  // Show playlist selection if no specific playlist is selected
   if (!id) {
     return (
       <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
@@ -484,14 +460,13 @@ const PlaylistPage = () => {
               <video
                 ref={videoRef}
                 className="w-full aspect-video bg-black"
-                poster="https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg"
+                poster={selectedPlaylist.thumbnail}   
                 playsInline
                 controls={false}
               />
 
               {/* Custom Controls */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                {/* Timeline */}
                 <div className="mb-4">
                   <div className="relative h-2 bg-white/20 rounded-full cursor-pointer" onClick={handleSeek}>
                     <div
@@ -501,7 +476,6 @@ const PlaylistPage = () => {
                   </div>
                 </div>
 
-                {/* Controls */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
                     <button onClick={togglePlay} className="text-white hover:text-cyan-300 transition-colors">
@@ -523,7 +497,6 @@ const PlaylistPage = () => {
                   </div>
 
                   <div className="flex items-center space-x-4">
-                    {/* Volume */}
                     <div className="flex items-center space-x-2">
                       <button onClick={toggleMute} className="text-white hover:text-cyan-300 transition-colors">
                         {isMuted || volume === 0 ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
@@ -533,26 +506,20 @@ const PlaylistPage = () => {
                       </div>
                     </div>
 
-                    {/* Quality (hidden for native HLS) */}
                     {!usesNativeHls && (
                       <div className="relative">
                         <button onClick={() => setShowQualityMenu((v) => !v)} className="text-white hover:text-cyan-300 transition-colors">
                           <Settings className="h-5 w-5" />
                         </button>
-
                         {showQualityMenu && (
                           <div className="absolute bottom-12 right-0 bg-gray-900 border border-white/10 rounded-lg shadow-lg z-50 min-w-[160px] p-2">
                             <div className="text-white text-sm font-medium mb-2">Quality</div>
-
-                            {/* Auto */}
                             <button
                               onClick={selectAuto}
                               className={`block w-full text-left px-2 py-1 text-sm rounded ${selectedLevel === -1 ? 'bg-white/20 text-white' : 'text-gray-300 hover:text-white hover:bg-white/10'}`}
                             >
                               Auto
                             </button>
-
-                            {/* Dynamic levels */}
                             {levels.map((lvl) => (
                               <button
                                 key={lvl.index}
@@ -562,8 +529,6 @@ const PlaylistPage = () => {
                                 {lvl.label}
                               </button>
                             ))}
-
-                            {/* Empty state */}
                             {levels.length === 0 && (
                               <div className="px-2 py-1 text-xs text-gray-400">No variants found</div>
                             )}
@@ -580,7 +545,6 @@ const PlaylistPage = () => {
               </div>
             </div>
 
-            {/* Current Video Info */}
             {selectedPlaylist.videos[currentIndex] && (
               <div className="mt-6 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-6">
                 <h2 className="text-xl font-bold text-white mb-2">
@@ -593,7 +557,6 @@ const PlaylistPage = () => {
             )}
           </div>
 
-          {/* Playlist Sidebar */}
           <div className="lg:col-span-1">
             <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4">
               <h3 className="text-lg font-bold text-white mb-4">Playlist Content</h3>
@@ -633,4 +596,3 @@ const PlaylistPage = () => {
 };
 
 export default PlaylistPage;
-
