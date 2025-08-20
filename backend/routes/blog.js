@@ -150,13 +150,22 @@ router.get('/:slug/related', async (req, res) => {
 });
 
 // Admin routes for blog management with file upload
-router.post('/admin/create', authenticateAdmin, upload.single('featuredImage'), async (req, res) => {
+router.post('/admin/create', authenticateAdmin, upload.fields([
+  { name: 'featuredImage', maxCount: 1 },
+  { name: 'image', maxCount: 1 }
+]), async (req, res) => {
   try {
     const { title, excerpt, content, category, tags, status } = req.body;
 
     let featuredImage = 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'; // default
-    if (req.file) {
-      featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.file.filename}`;
+    let image = null;
+    
+    if (req.files && req.files.featuredImage) {
+      featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.featuredImage[0].filename}`;
+    }
+    
+    if (req.files && req.files.image) {
+      image = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.image[0].filename}`;
     }
 
     const post = new BlogPost({
@@ -167,6 +176,7 @@ router.post('/admin/create', authenticateAdmin, upload.single('featuredImage'), 
       tags: tags ? tags.split(',').map(tag => tag.trim()).filter(tag => tag) : [],
       status: status || 'draft',
       featuredImage,
+      image,
       author: req.user._id
     });
 
@@ -175,14 +185,18 @@ router.post('/admin/create', authenticateAdmin, upload.single('featuredImage'), 
 
     res.status(201).json(post);
   } catch (error) {
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
+    if (req.files) {
+      if (req.files.featuredImage) fs.unlink(req.files.featuredImage[0].path, () => {});
+      if (req.files.image) fs.unlink(req.files.image[0].path, () => {});
     }
     res.status(400).json({ error: error.message });
   }
 });
 
-router.put('/admin/:id', authenticateAdmin, upload.single('featuredImage'), async (req, res) => {
+router.put('/admin/:id', authenticateAdmin, upload.fields([
+  { name: 'featuredImage', maxCount: 1 },
+  { name: 'image', maxCount: 1 }
+]), async (req, res) => {
   try {
     const { title, excerpt, content, category, tags, status } = req.body;
     const updateData = {
@@ -194,8 +208,12 @@ router.put('/admin/:id', authenticateAdmin, upload.single('featuredImage'), asyn
       status: status || 'draft'
     };
 
-    if (req.file) {
-      updateData.featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.file.filename}`;
+    if (req.files && req.files.featuredImage) {
+      updateData.featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.featuredImage[0].filename}`;
+    }
+    
+    if (req.files && req.files.image) {
+      updateData.image = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.image[0].filename}`;
     }
 
     const post = await BlogPost.findByIdAndUpdate(
@@ -205,16 +223,18 @@ router.put('/admin/:id', authenticateAdmin, upload.single('featuredImage'), asyn
     ).populate('author', 'username');
 
     if (!post) {
-      if (req.file) {
-        fs.unlink(req.file.path, () => {});
+      if (req.files) {
+        if (req.files.featuredImage) fs.unlink(req.files.featuredImage[0].path, () => {});
+        if (req.files.image) fs.unlink(req.files.image[0].path, () => {});
       }
       return res.status(404).json({ error: 'Blog post not found' });
     }
 
     res.json(post);
   } catch (error) {
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
+    if (req.files) {
+      if (req.files.featuredImage) fs.unlink(req.files.featuredImage[0].path, () => {});
+      if (req.files.image) fs.unlink(req.files.image[0].path, () => {});
     }
     res.status(400).json({ error: error.message });
   }

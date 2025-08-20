@@ -30,6 +30,10 @@ const blogPostSchema = new mongoose.Schema({
     type: String,
     default: 'https://github.com/techyavixyz/Kloud-scaler-LMS---Modern-Tech-Learning-Platform/blob/main/backend/images/Screenshot%20from%202024-10-07%2017-02-16.png'
   },
+  image: {
+    type: String,
+    default: null // Main inline blog image
+  },
   tags: [{
     type: String,
     trim: true

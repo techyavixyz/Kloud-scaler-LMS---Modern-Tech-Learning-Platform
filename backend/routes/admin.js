@@ -15,7 +15,7 @@ const router = express.Router();
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     let uploadDir = 'uploads/';
-    if (file.fieldname === 'featuredImage') {
+    if (file.fieldname === 'featuredImage' || file.fieldname === 'image') {
       uploadDir += 'blog-thumbnails';
     } else if (file.fieldname === 'thumbnail') {
       uploadDir += 'course-thumbnails';
@@ -30,7 +30,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const prefix = file.fieldname === 'featuredImage' ? 'blog-' : 
+    const prefix = (file.fieldname === 'featuredImage' || file.fieldname === 'image') ? 'blog-' : 
                    file.fieldname === 'thumbnail' ? 'course-' : 'file-';
     cb(null, prefix + uniqueSuffix + path.extname(file.originalname));
   }
@@ -231,16 +231,26 @@ router.get('/blog-posts', async (req, res) => {
 });
 
 // Create blog post
-router.post('/blog-posts', upload.single('featuredImage'), async (req, res) => {
+router.post('/blog-posts', upload.fields([
+  { name: 'featuredImage', maxCount: 1 },
+  { name: 'image', maxCount: 1 }
+]), async (req, res) => {
   try {
     let featuredImage = 'https://images.pexels.com/photos/325229/pexels-photo-325229.jpeg'; // default
-    if (req.file) {
-      featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.file.filename}`;
+    let image = null;
+    
+    if (req.files && req.files.featuredImage) {
+      featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.featuredImage[0].filename}`;
+    }
+    
+    if (req.files && req.files.image) {
+      image = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.image[0].filename}`;
     }
 
     const post = new BlogPost({
       ...req.body,
       featuredImage,
+      image,
       author: req.user._id
     });
     
@@ -249,20 +259,28 @@ router.post('/blog-posts', upload.single('featuredImage'), async (req, res) => {
     
     res.status(201).json(post);
   } catch (error) {
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
+    if (req.files) {
+      if (req.files.featuredImage) fs.unlink(req.files.featuredImage[0].path, () => {});
+      if (req.files.image) fs.unlink(req.files.image[0].path, () => {});
     }
     res.status(400).json({ error: error.message });
   }
 });
 
 // Update blog post
-router.put('/blog-posts/:id', upload.single('featuredImage'), async (req, res) => {
+router.put('/blog-posts/:id', upload.fields([
+  { name: 'featuredImage', maxCount: 1 },
+  { name: 'image', maxCount: 1 }
+]), async (req, res) => {
   try {
     const updateData = { ...req.body };
     
-    if (req.file) {
-      updateData.featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.file.filename}`;
+    if (req.files && req.files.featuredImage) {
+      updateData.featuredImage = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.featuredImage[0].filename}`;
+    }
+    
+    if (req.files && req.files.image) {
+      updateData.image = `${process.env.BACKEND_URL || 'http://localhost:3001'}/uploads/blog-thumbnails/${req.files.image[0].filename}`;
     }
 
     const post = await BlogPost.findByIdAndUpdate(
@@ -272,16 +290,18 @@ router.put('/blog-posts/:id', upload.single('featuredImage'), async (req, res) =
     ).populate('author', 'username email');
     
     if (!post) {
-      if (req.file) {
-        fs.unlink(req.file.path, () => {});
+      if (req.files) {
+        if (req.files.featuredImage) fs.unlink(req.files.featuredImage[0].path, () => {});
+        if (req.files.image) fs.unlink(req.files.image[0].path, () => {});
       }
       return res.status(404).json({ error: 'Blog post not found' });
     }
     
     res.json(post);
   } catch (error) {
-    if (req.file) {
-      fs.unlink(req.file.path, () => {});
+    if (req.files) {
+      if (req.files.featuredImage) fs.unlink(req.files.featuredImage[0].path, () => {});
+      if (req.files.image) fs.unlink(req.files.image[0].path, () => {});
     }
     res.status(400).json({ error: error.message });
   }
